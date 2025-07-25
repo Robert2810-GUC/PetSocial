@@ -1,6 +1,7 @@
 ﻿
-namespace Domain.Entities;
+using System.ComponentModel.DataAnnotations.Schema;
 
+namespace Domain.Entities;
 public class User
 {
     public long Id { get; set; }

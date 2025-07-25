@@ -1,4 +1,5 @@
-﻿using Domain.Entities;
+﻿using Application.Common.Interfaces;
+using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -17,53 +18,81 @@ namespace Application.Users.Commands
         private readonly UserManager<IdentityUser> _userManager;
         private readonly ApplicationDbContext _dbContext;
         private readonly IConfiguration _config;
+        private readonly IImageService _imageService;
 
         public RegisterUserCommandHandler(
             UserManager<IdentityUser> userManager,
             ApplicationDbContext dbContext,
-            IConfiguration config)
+            IConfiguration config,
+            IImageService imageService)
         {
             _userManager = userManager;
             _dbContext = dbContext;
             _config = config;
+
+            _imageService = imageService;
         }
 
         public async Task<string> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
         {
-            // 1. Create Identity User
-            var identityUser = new IdentityUser
-            {
-                UserName = request.Email,
-                Email = request.Email,
-                PhoneNumber = request.Phone
-            };
+            using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            var result = await _userManager.CreateAsync(identityUser, request.Password);
-            if (!result.Succeeded)
+            string imageUrl = null;
+            string imagePublicId = null;
+
+            try
             {
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                throw new Exception($"Registration failed: {errors}");
+                // 1. Upload image first (if image provided)
+                if (request.Image != null)
+                {
+                    var uploadResult = await _imageService.UploadImageAsync(request.Image);
+                    imageUrl = uploadResult.Url;
+                    imagePublicId = uploadResult.PublicId;
+                }
+
+                // 2. Create Identity User
+                var identityUser = new IdentityUser
+                {
+                    UserName = request.Email,
+                    Email = request.Email,
+                    PhoneNumber = request.Phone
+                };
+               var result = await _userManager.CreateAsync(identityUser, request.Password);
+                if (!result.Succeeded)
+                    throw new Exception("Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)));
+
+                // 3. Add User profile
+                var userProfile = new User
+                {
+                    IdentityId = identityUser.Id,
+                    Name = request.Name,
+                    Phone = request.Phone,
+                    Email = request.Email,
+                    Gender = request.Gender,
+                    DOB = request.DOB,
+                    ImagePath = imageUrl ?? "/images/default-user.jpg"
+                };
+                _dbContext.Users.Add(userProfile);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+
+                // 4. Generate JWT
+                var token = GenerateJwtToken(identityUser);
+                await transaction.CommitAsync(cancellationToken);
+
+                return token;
             }
-
-            // 2. Add user profile
-            var userProfile = new User
+            catch
             {
-                IdentityId = identityUser.Id,
-                Name = request.Name,
-                Phone = request.Phone,
-                Email = request.Email,
-                Gender = request.Gender,
-                DOB = request.DOB,
-                ImagePath = request.ImagePath
-            };
+                await transaction.RollbackAsync(cancellationToken);
 
-            _dbContext.Users.Add(userProfile);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            // 3. Generate JWT
-            var token = GenerateJwtToken(identityUser);
-
-            return token;
+                // Delete uploaded image if user/profile creation failed after upload
+                if (imagePublicId != null)
+                {
+                    await _imageService.DeleteImageAsync(imagePublicId);
+                }
+                throw;
+            }
         }
 
         private string GenerateJwtToken(IdentityUser user)
