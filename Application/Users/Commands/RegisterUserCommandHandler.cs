@@ -86,6 +86,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                     IdentityId = identityUser.Id,
                     Name = request.Name,
                     PhoneNumber = request.PhoneNumber,
+                    CountryCode = request.CountryCode,
                     Email = request.Email
                 };
                 _dbContext.Users.Add(userProfile);
