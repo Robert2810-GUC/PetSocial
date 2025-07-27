@@ -2,40 +2,67 @@
 using Persistence;
 using Application;
 using Infrastructure;
+using Serilog;
+using PetSocialAPI.Middlewares;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
+//serilog 
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File(@"C:\Logs\PetSocialLog\requests.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+
+
+
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
 // Add services to the container.
 
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer("Bearer", options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+
+});
+
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddSwaggerGen();
+bool enableRequestLogging = builder.Configuration.GetValue<bool>("EnableRequestLogging");
 
-builder.Services.AddMiniProfiler(options =>
-{
-    options.RouteBasePath = "/profiler"; // Browse this to see results
-    options.PopupRenderPosition = StackExchange.Profiling.RenderPosition.BottomRight;
-    options.TrackConnectionOpenClose = true;
-    options.ResultsAuthorize = request => true; // allow viewing in dev
-    options.ResultsListAuthorize = request => true;
-}).AddEntityFramework();
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (enableRequestLogging)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    // (Optional: app.MapOpenApi(); if you use minimal APIs)
+    app.UseMiddleware<RequestTimingMiddleware>();
 }
-app.UseMiniProfiler();
 
-app.UseHttpsRedirection();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

@@ -1,16 +1,15 @@
 ﻿using MediatR;
-using Microsoft.AspNetCore.Http;
+using Application.Common.Models;
 
-namespace Application.Users.Commands;
-
-public class RegisterUserCommand : IRequest<string> // Returns JWT token on success
+namespace Application.Users.Commands
 {
-    public string Name { get; set; }
-    public string Phone { get; set; }
-    public string Email { get; set; }      // Also used as username
-    public string Gender { get; set; }
-    public DateTime DOB { get; set; }
-    public string Password { get; set; }
-    public string ImagePath { get; set; } = string.Empty;
-    public IFormFile Image { get; set; }
+    public class RegisterUserCommand : IRequest<ApiResponse<TokenResult>>
+    {
+        public string Name { get;   set; }
+        public string Email { get; set; }
+        public string CountryCode { get; set; }
+        public string PhoneNumber { get; set; }
+        public string Otp { get; set; }
+        public string Password { get; set; }
+    }
 }

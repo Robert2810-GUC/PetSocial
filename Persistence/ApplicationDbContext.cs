@@ -10,6 +10,15 @@ public class ApplicationDbContext : IdentityDbContext
 
 
     public DbSet<User> Users { get; set; }
+    public DbSet<UserLogin> UserLogins { get; set; }
+    public DbSet<UserPet> UserPets { get; set; }
+    public DbSet<PetType> PetTypes { get; set; }
+    public DbSet<PetBreed> PetBreeds { get; set; }
+    public DbSet<PetColor> PetColors { get; set; }
+    public DbSet<UserPetColor> UserPetColors { get; set; }
+    public DbSet<UserPetMixColor> UserPetMixColors { get; set; }
+    public DbSet<UserPetOtherBreed> UserPetOtherBreeds { get; set; }
+    public DbSet<UserOtp> UserOtps { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

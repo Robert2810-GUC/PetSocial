@@ -1,120 +1,123 @@
 ﻿using Application.Common.Interfaces;
+using Application.Common.Models;
 using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 using Persistence;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames;
 
-namespace Application.Users.Commands
+namespace Application.Users.Commands;
+
+public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, ApiResponse<TokenResult>>
 {
-    public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, string>
+    private readonly UserManager<IdentityUser> _userManager;
+    private readonly ApplicationDbContext _dbContext;
+    private readonly IConfiguration _config;
+    private readonly IJwtTokenService _jwtTokenService;
+
+
+    public RegisterUserCommandHandler(
+        UserManager<IdentityUser> userManager,
+        ApplicationDbContext dbContext,
+        IConfiguration config,
+        IJwtTokenService jwtTokenService)
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        private readonly ApplicationDbContext _dbContext;
-        private readonly IConfiguration _config;
-        private readonly IImageService _imageService;
+        _userManager = userManager;
+        _dbContext = dbContext;
+        _config = config;
+        _jwtTokenService = jwtTokenService;
+    }
 
-        public RegisterUserCommandHandler(
-            UserManager<IdentityUser> userManager,
-            ApplicationDbContext dbContext,
-            IConfiguration config,
-            IImageService imageService)
+    public async Task<ApiResponse<TokenResult>> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
+    {
+        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
         {
-            _userManager = userManager;
-            _dbContext = dbContext;
-            _config = config;
+            // 1. Validate inputs
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return ApiResponse<TokenResult>.Fail("Email is required.", 400);
+            if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+                return ApiResponse<TokenResult>.Fail("Phone is required.", 400);
+            if (string.IsNullOrWhiteSpace(request.Name))
+                return ApiResponse<TokenResult>.Fail("Name is required.", 400);
+            if (string.IsNullOrWhiteSpace(request.Password))
+                return ApiResponse<TokenResult>.Fail("Password is required.", 400);
 
-            _imageService = imageService;
-        }
+            // 2. Check uniqueness
+            var emailExists = await _userManager.FindByEmailAsync(request.Email) != null;
+            var phoneExists = _userManager.Users.Any(u => u.PhoneNumber == request.PhoneNumber);
+            if (emailExists)
+                return ApiResponse<TokenResult>.Fail("Email already registered.", 409);
+            if (phoneExists)
+                return ApiResponse<TokenResult>.Fail("Phone already registered.", 409);
 
-        public async Task<string> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
-        {
-            using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            var otpEntity = await _dbContext.UserOtps
+                .Where(x => x.CountryCode == request.CountryCode && x.PhoneNumber == request.PhoneNumber && x.Otp == request.Otp && !x.IsUsed && x.ExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(x => x.ExpiresAt)
+                .FirstOrDefaultAsync();
 
-            string imageUrl = null;
-            string imagePublicId = null;
+            if (otpEntity == null)
+                return ApiResponse<TokenResult>.Fail("Invalid or expired OTP.", 400);
 
-            try
+            otpEntity.IsUsed = true;
+
+            // 3. Create Identity User
+            var identityUser = new IdentityUser
             {
-                // 1. Upload image first (if image provided)
-                if (request.Image != null)
-                {
-                    var uploadResult = await _imageService.UploadImageAsync(request.Image);
-                    imageUrl = uploadResult.Url;
-                    imagePublicId = uploadResult.PublicId;
-                }
+                UserName = $"{request.CountryCode}{request.PhoneNumber}",
+                Email = request.Email,
+                PhoneNumber = $"{request.CountryCode}{request.PhoneNumber}"
+            };
 
-                // 2. Create Identity User
-                var identityUser = new IdentityUser
-                {
-                    UserName = request.Email,
-                    Email = request.Email,
-                    PhoneNumber = request.Phone
-                };
-               var result = await _userManager.CreateAsync(identityUser, request.Password);
-                if (!result.Succeeded)
-                    throw new Exception("Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)));
+            var result = await _userManager.CreateAsync(identityUser, request.Password);
+            if (!result.Succeeded)
+                return ApiResponse<TokenResult>.Fail(
+                    "Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)), 400);
 
-                // 3. Add User profile
+
+
+            // Now you can parallelize
+            var addUserLoginTask = Task.Run(async () =>
+            {
                 var userProfile = new User
                 {
                     IdentityId = identityUser.Id,
                     Name = request.Name,
-                    Phone = request.Phone,
-                    Email = request.Email,
-                    Gender = request.Gender,
-                    DOB = request.DOB,
-                    ImagePath = imageUrl ?? "/images/default-user.jpg"
+                    PhoneNumber = request.PhoneNumber,
+                    Email = request.Email
                 };
                 _dbContext.Users.Add(userProfile);
                 await _dbContext.SaveChangesAsync(cancellationToken);
 
-
-                // 4. Generate JWT
-                var token = GenerateJwtToken(identityUser);
-                await transaction.CommitAsync(cancellationToken);
-
-                return token;
-            }
-            catch
-            {
-                await transaction.RollbackAsync(cancellationToken);
-
-                // Delete uploaded image if user/profile creation failed after upload
-                if (imagePublicId != null)
+                var userLogins = new UserLogin
                 {
-                    await _imageService.DeleteImageAsync(imagePublicId);
-                }
-                throw;
-            }
-        }
+                    UserId = userProfile.Id,
+                    Password = request.Password,
+                };
+                _dbContext.UserLogins.Add(userLogins);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }, cancellationToken);
 
-        private string GenerateJwtToken(IdentityUser user)
-        {
-            var claims = new[]
+            var generateTokenTask = Task.Run(() =>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+                return _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, identityUser.UserName);
+            });
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            await Task.WhenAll(addUserLoginTask, generateTokenTask);
 
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddDays(7),
-                signingCredentials: creds);
+            await transaction.CommitAsync(cancellationToken);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            var tokenResult = new TokenResult { Token = generateTokenTask.Result };
+
+            return ApiResponse<TokenResult>.Success(tokenResult, "User registered successfully!", 201);
+
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return ApiResponse<TokenResult>.Fail("Registration error: " + ex.Message, 500);
         }
     }
 }
