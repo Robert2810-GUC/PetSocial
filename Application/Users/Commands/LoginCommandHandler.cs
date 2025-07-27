@@ -42,7 +42,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         else if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
         {
             // Find custom User entity by phone, then get IdentityId
-            var userProfile = _dbContext.Users.FirstOrDefault(u => u.PhoneNumber == $"{request.CountryCode}{request.PhoneNumber}");
+            var userProfile = _dbContext.Users.FirstOrDefault(u => u.PhoneNumber == request.PhoneNumber && u.CountryCode == request.CountryCode);
             if (userProfile != null)
             {
                 identityUser = await _userManager.FindByIdAsync(userProfile.IdentityId);
