@@ -19,6 +19,7 @@ public class ApplicationDbContext : IdentityDbContext
     public DbSet<UserPetMixColor> UserPetMixColors { get; set; }
     public DbSet<UserPetOtherBreed> UserPetOtherBreeds { get; set; }
     public DbSet<UserOtp> UserOtps { get; set; }
+    public DbSet<UserType> UserTypes { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

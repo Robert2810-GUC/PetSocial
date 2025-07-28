@@ -13,6 +13,7 @@ public class User
     public DateTime? DOB { get; set; }
     public string? ImagePath { get; set; }
     public string IdentityId { get; set; } 
+    public long UserTypeId { get; set; }
 
     public ICollection<UserPet>? UserPets { get; set; }
 }

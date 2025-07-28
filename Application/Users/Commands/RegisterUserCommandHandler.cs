@@ -76,6 +76,10 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                 return ApiResponse<TokenResult>.Fail(
                     "Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)), 400);
 
+            var roleresult = await _userManager.AddToRoleAsync(identityUser, "User");
+            if (!roleresult.Succeeded)
+                return ApiResponse<TokenResult>.Fail(
+                    "Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)), 400);
 
 
             // Now you can parallelize
@@ -87,7 +91,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                     Name = request.Name,
                     PhoneNumber = request.PhoneNumber,
                     CountryCode = request.CountryCode,
-                    Email = request.Email
+                    Email = request.Email,
+                    UserTypeId = request.UserTypeId.Value
                 };
                 _dbContext.Users.Add(userProfile);
                 await _dbContext.SaveChangesAsync(cancellationToken);
