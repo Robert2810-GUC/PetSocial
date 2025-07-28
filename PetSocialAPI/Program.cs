@@ -45,6 +45,17 @@ builder.Services.AddAuthentication(options =>
     };
 
 });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowDevClient", builder =>
+    {
+        builder
+            .WithOrigins("http://localhost:5173") // Your React dev server
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials(); // Optional: only if you use cookies
+    });
+});
 
 
 builder.Services.AddControllers();
@@ -62,6 +73,8 @@ if (enableRequestLogging)
 
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseCors("AllowDevClient");
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
