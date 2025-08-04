@@ -85,10 +85,7 @@ public class AdminController : ControllerBase
     [HttpPut("pet-types/{id}")]
     public async Task<IActionResult> UpdatePetType(long id, [FromForm] PetTypeDto dto, IFormFile? image)
     {
-        if (string.IsNullOrWhiteSpace(dto.Name))
-            return BadRequest("Pet type name is required.");
-
-        string? uploadedPublicId = null;
+        string? newUploadedPublicId = null;
         using var tx = await _dbContext.Database.BeginTransactionAsync();
 
         try
@@ -107,9 +104,28 @@ public class AdminController : ControllerBase
 
             if (image != null)
             {
+                // 🔁 Remove old image if it has a Cloudinary public ID
+                if (!string.IsNullOrEmpty(petType.ImagePath) && petType.ImagePath.Contains("res.cloudinary.com"))
+                {
+                    try
+                    {
+                        // Extract public ID (depends on how you stored it)
+                        var uri = new Uri(petType.ImagePath);
+                        var segments = uri.AbsolutePath.Split('/');
+                        var filename = segments.Last(); // e.g. abc123.png
+                        var publicId = filename[..filename.LastIndexOf('.')]; // abc123
+                        await _imageService.DeleteImageAsync(publicId);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Optionally log error deleting old image
+                    }
+                }
+
+                // ⬆️ Upload new image
                 var uploadResult = await _imageService.UploadImageAsync(image);
                 petType.ImagePath = uploadResult.Url;
-                uploadedPublicId = uploadResult.PublicId;
+                newUploadedPublicId = uploadResult.PublicId;
             }
 
             await _dbContext.SaveChangesAsync();
@@ -120,13 +136,40 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             await tx.RollbackAsync();
-            if (!string.IsNullOrEmpty(uploadedPublicId))
+            if (!string.IsNullOrEmpty(newUploadedPublicId))
             {
-                try { await _imageService.DeleteImageAsync(uploadedPublicId); } catch { }
+                try { await _imageService.DeleteImageAsync(newUploadedPublicId); } catch { }
             }
+
             return StatusCode(500, $"Failed to update pet type: {ex.Message}");
         }
     }
+    [HttpDelete("pet-types/{id}")]
+    public async Task<IActionResult> DeletePetType(long id)
+    {
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var type = await _dbContext.PetTypes.FindAsync(id);
+            if (type == null) return NotFound("Pet type not found.");
+
+            await _dbContext.UserPets
+                .Where(p => p.PetTypeId == id)
+                .ExecuteUpdateAsync(p => p.SetProperty(x => x.PetTypeId, 0));
+
+            _dbContext.PetTypes.Remove(type);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok("Pet type deleted and references reset.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to delete pet type: {ex.Message}");
+        }
+    }
+
+
 
     // ---------------------------
     // 🔹 PET BREEDS
@@ -181,7 +224,7 @@ public class AdminController : ControllerBase
 
         try
         {
-            if(breed.SortOrder == 0)
+            if (breed.SortOrder == 0)
             {
                 int maxSortOrder = await _dbContext.PetBreeds
                     .Where(b => b.PetTypeID == breed.PetTypeID)
@@ -240,4 +283,149 @@ public class AdminController : ControllerBase
             return StatusCode(500, $"Failed to update breed: {ex.Message}");
         }
     }
+
+    [HttpDelete("breeds/{id}")]
+    public async Task<IActionResult> DeleteBreed(long id)
+    {
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var breed = await _dbContext.PetBreeds.FindAsync(id);
+            if (breed == null) return NotFound("Breed not found.");
+
+            await _dbContext.UserPets
+                .Where(p => p.PetBreedId == id)
+                .ExecuteUpdateAsync(p => p.SetProperty(x => x.PetBreedId, 0));
+
+            _dbContext.PetBreeds.Remove(breed);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok("Breed deleted and references reset.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to delete breed: {ex.Message}");
+        }
+    }
+
+
+
+
+    // ---------------------------
+    // 🔹 PET Colors
+    // ---------------------------
+
+    [HttpGet("colors")]
+    public async Task<IActionResult> GetColors(string? search = null)
+    {
+        var query = _dbContext.PetColors.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(c => c.Name.ToLower().Contains(search.Trim().ToLower()));
+
+        var colors = await query
+            .OrderBy(c => c.SortOrder)
+            .ToListAsync();
+
+        return Ok(colors);
+    }
+
+    [HttpPost("colors")]
+    public async Task<IActionResult> CreateColor([FromBody] PetColor color)
+    {
+        if (string.IsNullOrWhiteSpace(color.Name))
+            return BadRequest("Color name is required.");
+
+        bool exists = await _dbContext.PetColors.AnyAsync(c => c.Name.ToLower() == color.Name.Trim().ToLower());
+        if (exists)
+            return Conflict("A color with the same name already exists.");
+
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            if (color.SortOrder == 0)
+            {
+                int maxSort = await _dbContext.PetColors.MaxAsync(c => (int?)c.SortOrder) ?? 0;
+                color.SortOrder = maxSort + 1;
+            }
+            color.Name = color.Name.Trim();
+
+            _dbContext.PetColors.Add(color);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(color);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to create color: {ex.Message}");
+        }
+    }
+
+    [HttpPut("colors/{id}")]
+    public async Task<IActionResult> UpdateColor(long id, [FromBody] PetColor model)
+    {
+        if (string.IsNullOrWhiteSpace(model.Name))
+            return BadRequest("Color name is required.");
+
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            var color = await _dbContext.PetColors.FindAsync(id);
+            if (color == null) return NotFound("Color not found.");
+
+            bool exists = await _dbContext.PetColors.AnyAsync(c =>
+                c.Name.ToLower() == model.Name.Trim().ToLower() && c.Id != id);
+
+            if (exists)
+                return Conflict("Another color with the same name exists.");
+
+            color.Name = model.Name.Trim();
+            color.SortOrder = model.SortOrder;
+
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(color);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to update color: {ex.Message}");
+        }
+    }
+    [HttpDelete("colors/{id}")]
+    public async Task<IActionResult> DeleteColor(long id)
+    {
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var color = await _dbContext.PetColors.FindAsync(id);
+            if (color == null) return NotFound("Color not found.");
+
+            // Get affected UserPetColor records
+            var userColors = await _dbContext.UserPetColors
+                .Where(c => c.PetColorId == id)
+                .ToListAsync();
+
+            foreach (var uc in userColors)
+                uc.PetColorId = 0;
+
+            _dbContext.PetColors.Remove(color);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok("Color deleted and references reset.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to delete color: {ex.Message}");
+        }
+    }
+
+
 }
