@@ -101,6 +101,7 @@ public class AdminController : ControllerBase
                 return Conflict("Another pet type with the same name already exists.");
 
             petType.Name = dto.Name.Trim();
+            petType.SortOrder = Convert.ToInt32(dto.SortOrder);
 
             if (image != null)
             {
