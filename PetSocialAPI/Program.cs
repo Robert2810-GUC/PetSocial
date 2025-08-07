@@ -51,10 +51,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowDevClient", builder =>
     {
         builder
-            .WithOrigins("http://localhost:5173") // Your React dev server
+            .WithOrigins("http://localhost:5173", "https://robert2810-guc.github.io") // Your React dev server
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials(); // Optional: only if you use cookies
+            .AllowAnyMethod();
+            //.AllowCredentials(); // Optional: only if you use cookies
     });
 });
 
