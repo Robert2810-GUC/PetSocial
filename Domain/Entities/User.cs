@@ -8,12 +8,14 @@ public class User
     public string Name { get; set; }
     public string CountryCode { get; set; }
     public string PhoneNumber { get; set; }
-    public string Email { get; set; }
-    public string? Gender { get; set; }
-    public DateTime? DOB { get; set; }
-    public string? ImagePath { get; set; }
-    public string IdentityId { get; set; } 
+    public string? Email { get; set; }
+    public string IdentityId { get; set; }
     public long UserTypeId { get; set; }
 
-    public ICollection<UserPet>? UserPets { get; set; }
+    // Navigation properties
+    public UserType UserType { get; set; }
+    public PetOwnerProfile PetOwnerProfile { get; set; }
+    public PetBusinessProfile PetBusinessProfile { get; set; }
+    public ContentCreatorProfile ContentCreatorProfile { get; set; }
 }
+

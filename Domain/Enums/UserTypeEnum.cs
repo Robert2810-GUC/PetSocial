@@ -2,7 +2,7 @@
 
 public enum UserTypeEnum
 {
-    User = 1,
-    Business = 2,
-    PetOwner = 3
+    PetOwner = 1,
+    PetBusiness = 2,
+    ContentCreator = 3
 }

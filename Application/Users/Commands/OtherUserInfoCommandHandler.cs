@@ -25,14 +25,28 @@ public class OtherUserInfoCommandHandler : IRequestHandler<OtherUserInfoCommand,
     public async Task<ApiResponse<TokenResult>> Handle(OtherUserInfoCommand request, CancellationToken cancellationToken)
     {
         string uploadedPublicId = null;
-
+        using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.IdentityId == request.IdentityId, cancellationToken);
+            // 1. Find the user
+            var user = await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.IdentityId == request.IdentityId, cancellationToken);
+
             if (user == null)
                 return ApiResponse<TokenResult>.Fail("User not found.", 404);
 
-            string imageUrl = user.ImagePath; 
+
+            user.Email = request.Email;
+            _dbContext.Users.Update(user);
+
+
+            // 2. Try to get the PetOwnerProfile
+            var profile = await _dbContext.PetOwnerProfiles
+                .FirstOrDefaultAsync(p => p.UserId == user.Id, cancellationToken);
+
+            string imageUrl = profile?.ImagePath;
+
+            // 3. Handle image upload
             if (request.Image != null)
             {
                 var uploadResult = await _imageService.UploadImageAsync(request.Image);
@@ -40,27 +54,44 @@ public class OtherUserInfoCommandHandler : IRequestHandler<OtherUserInfoCommand,
                 uploadedPublicId = uploadResult.PublicId;
             }
 
-            // Update fields
-            user.ImagePath = imageUrl;
-            user.DOB = request.DOB;
-            user.Gender = request.Gender;
+            // 4. If no profile exists, create one
+            if (profile == null)
+            {
+                profile = new PetOwnerProfile
+                {
+                    UserId = user.Id,
+                    Gender = request.Gender,
+                    DOB = request.DOB,
+                    ImagePath = imageUrl                   
+                };
+                await _dbContext.PetOwnerProfiles.AddAsync(profile, cancellationToken);
+            }
+            else
+            {
+                // Update fields
+                profile.Gender = request.Gender;
+                profile.DOB = request.DOB;
+                profile.ImagePath = imageUrl;
 
-            _dbContext.Users.Update(user);
+                _dbContext.PetOwnerProfiles.Update(profile);
+            }
+
             await _dbContext.SaveChangesAsync(cancellationToken);
-
+            await tx.CommitAsync(cancellationToken);
             return ApiResponse<TokenResult>.Success(null, "User info updated!", 200);
         }
         catch (Exception ex)
         {
+            await tx.RollbackAsync(cancellationToken);
             if (!string.IsNullOrEmpty(uploadedPublicId))
             {
                 try
                 {
                     await _imageService.DeleteImageAsync(uploadedPublicId);
                 }
-                catch (Exception delEx)
+                catch
                 {
-                    // Optionally log the cleanup failure, but don’t throw!
+                    // Optionally log the cleanup failure
                 }
             }
             return ApiResponse<TokenResult>.Fail("Update error: " + ex.Message, 500);

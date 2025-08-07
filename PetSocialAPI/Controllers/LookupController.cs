@@ -37,7 +37,13 @@ public class LookupController : ControllerBase
     [HttpGet("usertypes")]
     public async Task<IActionResult> GetUserTypes() =>
         Ok(await _db.UserTypes
-            // (Optional) .Where(c => c.PetTypeId == petTypeId) if colors are type-specific
+            .Select(c => new { c.Id, c.Name })
+            .ToListAsync());
+
+    [HttpGet("food")]
+    public async Task<IActionResult> GetFood() =>
+        Ok(await _db.PetFoods
+            .OrderBy(c => c.SortOrder)
             .Select(c => new { c.Id, c.Name })
             .ToListAsync());
 }

@@ -63,11 +63,14 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                 Food = request.Food,
                 Weight = request.Weight,
                 WeightUnit = request.WeightUnit,
-                Character = request.Character
+                Character = request.Character,
+                PetFoodId = request.PetFoodId,
+                CustomFood = (request.PetFoodId == ReservedIds.FoodOther) ? request.CustomFood : null,
             };
             _dbContext.UserPets.Add(pet);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
+            var anyDBQuery = false;
             // 4. Insert mix breed info if needed
             if (request.IsMixedBreed && !string.IsNullOrEmpty(request.FirstBreed) && !string.IsNullOrEmpty(request.SecondBreed))
             {
@@ -77,39 +80,47 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                     FirstBreed = request.FirstBreed,
                     SecondBreed = request.SecondBreed
                 });
+                anyDBQuery = true;
             }
 
+            UserPetColor petColor = null;
             // 5. Insert color(s)
-            var petColor = new UserPetColor
+            if (request.PetColorId.HasValue)
             {
-                UserPetId = pet.Id,
-                PetColorId = request.PetColorId
-            };
-            _dbContext.UserPetColors.Add(petColor);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            // 6. Insert mix colors if any
-            if (request.PetColorId == ReservedIds.ColorMix && !string.IsNullOrEmpty(request.MixColors))
-            {
-                var mixColors = JsonSerializer.Deserialize<List<MixColorDto>>(
-                    request.MixColors,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                );
-                if (mixColors != null && mixColors.Count > 0)
+                petColor = new UserPetColor
                 {
-                    foreach (var mix in mixColors)
-                    {
-                        _dbContext.UserPetMixColors.Add(new UserPetMixColor
-                        {
-                            UserPetColorId = petColor.Id,
-                            Color = mix.Color,
-                            Percentage = mix.Percentage
-                        });
-                    }
+                    UserPetId = pet.Id,
+                    PetColorId = request.PetColorId.Value
+                };
+                _dbContext.UserPetColors.Add(petColor);
+                await _dbContext.SaveChangesAsync(cancellationToken);
 
+
+                // 6. Insert mix colors if any
+                if (request.PetColorId == ReservedIds.ColorMix && !string.IsNullOrEmpty(request.MixColors))
+                {
+                    var mixColors = JsonSerializer.Deserialize<List<MixColorDto>>(
+                        request.MixColors,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                    );
+                    if (mixColors != null && mixColors.Count > 0)
+                    {
+                        foreach (var mix in mixColors)
+                        {
+                            _dbContext.UserPetMixColors.Add(new UserPetMixColor
+                            {
+                                UserPetColorId = petColor.Id,
+                                Color = mix.Color,
+                                Percentage = mix.Percentage
+                            });
+                        }
+
+                        anyDBQuery = true;
+                    }
                 }
             }
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            if (anyDBQuery)
+                await _dbContext.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
 
             return ApiResponse<long>.Success(pet.Id, "Pet registered successfully!", 201);

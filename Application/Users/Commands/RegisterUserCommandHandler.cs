@@ -36,8 +36,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         try
         {
             // 1. Validate inputs
-            if (string.IsNullOrWhiteSpace(request.Email))
-                return ApiResponse<TokenResult>.Fail("Email is required.", 400);
+            //if (string.IsNullOrWhiteSpace(request.Email))
+            //    return ApiResponse<TokenResult>.Fail("Email is required.", 400);
             if (string.IsNullOrWhiteSpace(request.PhoneNumber))
                 return ApiResponse<TokenResult>.Fail("Phone is required.", 400);
             if (string.IsNullOrWhiteSpace(request.Name))
@@ -46,10 +46,10 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                 return ApiResponse<TokenResult>.Fail("Password is required.", 400);
 
             // 2. Check uniqueness
-            var emailExists = await _userManager.FindByEmailAsync(request.Email) != null;
-            var phoneExists = _userManager.Users.Any(u => u.PhoneNumber == request.PhoneNumber);
-            if (emailExists)
-                return ApiResponse<TokenResult>.Fail("Email already registered.", 409);
+            //var emailExists = !string.IsNullOrEmpty(request.Email) && await _userManager.FindByEmailAsync(request.Email) != null;
+            var phoneExists = _userManager.Users.Any(u => u.PhoneNumber == $"{request.CountryCode}{request.PhoneNumber}");
+            //if (emailExists)
+            //    return ApiResponse<TokenResult>.Fail("Email already registered.", 409);
             if (phoneExists)
                 return ApiResponse<TokenResult>.Fail("Phone already registered.", 409);
 
@@ -67,7 +67,6 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
             var identityUser = new IdentityUser
             {
                 UserName = $"{request.CountryCode}{request.PhoneNumber}",
-                Email = request.Email,
                 PhoneNumber = $"{request.CountryCode}{request.PhoneNumber}"
             };
 
@@ -91,8 +90,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                     Name = request.Name,
                     PhoneNumber = request.PhoneNumber,
                     CountryCode = request.CountryCode,
-                    Email = request.Email,
-                    UserTypeId = request.UserTypeId.Value
+                    UserTypeId = request.UserTypeId
                 };
                 _dbContext.Users.Add(userProfile);
                 await _dbContext.SaveChangesAsync(cancellationToken);
