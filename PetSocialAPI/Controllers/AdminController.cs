@@ -62,6 +62,7 @@ public class AdminController : ControllerBase
             var petType = new PetType
             {
                 Name = dto.Name.Trim(),
+                SortOrder = dto.SortOrder != 0 ? dto.SortOrder : (int)_dbContext.PetTypes.Max(m => m.Id),
                 ImagePath = imageUrl
             };
 
@@ -153,6 +154,7 @@ public class AdminController : ControllerBase
         {
             var type = await _dbContext.PetTypes.FindAsync(id);
             if (type == null) return NotFound("Pet type not found.");
+            if (string.Equals(type.Name, "other", StringComparison.OrdinalIgnoreCase)) return StatusCode(500, "Can't delete Other.");
 
             await _dbContext.UserPets
                 .Where(p => p.PetTypeId == id)
@@ -293,6 +295,8 @@ public class AdminController : ControllerBase
         {
             var breed = await _dbContext.PetBreeds.FindAsync(id);
             if (breed == null) return NotFound("Breed not found.");
+            if (string.Equals(breed.Name, "other", StringComparison.OrdinalIgnoreCase)) return StatusCode(500, "Can't delete Other.");
+            if (string.Equals(breed.Name, "mix breed", StringComparison.OrdinalIgnoreCase)) return StatusCode(500, "Can't delete Mix Breed.");
 
             await _dbContext.UserPets
                 .Where(p => p.PetBreedId == id)
@@ -407,6 +411,8 @@ public class AdminController : ControllerBase
         {
             var color = await _dbContext.PetColors.FindAsync(id);
             if (color == null) return NotFound("Color not found.");
+            if (string.Equals(color.Name, "other", StringComparison.OrdinalIgnoreCase)) return StatusCode(500, "Can't delete Other.");
+            if (string.Equals(color.Name, "mix color", StringComparison.OrdinalIgnoreCase)) return StatusCode(500, "Can't delete Mix Color.");
 
             // Get affected UserPetColor records
             var userColors = await _dbContext.UserPetColors
