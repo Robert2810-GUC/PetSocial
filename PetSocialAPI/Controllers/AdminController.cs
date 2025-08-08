@@ -433,6 +433,121 @@ public class AdminController : ControllerBase
             return StatusCode(500, $"Failed to delete color: {ex.Message}");
         }
     }
+    // ---------------------------
+    // 🔹 PET FOODS
+    // ---------------------------
 
+    [HttpGet("foods")]
+    public async Task<IActionResult> GetFoods(string? search = null)
+    {
+        var query = _dbContext.PetFoods.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(f => f.Name.ToLower().Contains(search.Trim().ToLower()));
+
+        var foods = await query
+            .OrderBy(f => f.SortOrder)
+            .ToListAsync();
+
+        return Ok(foods);
+    }
+
+    [HttpPost("foods")]
+    public async Task<IActionResult> CreateFood([FromBody] PetFood food)
+    {
+        if (string.IsNullOrWhiteSpace(food.Name))
+            return BadRequest("Food name is required.");
+
+        bool exists = await _dbContext.PetFoods.AnyAsync(f => f.Name.ToLower() == food.Name.Trim().ToLower());
+        if (exists)
+            return Conflict("A food with the same name already exists.");
+
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            if (food.SortOrder == 0)
+            {
+                int maxSort = await _dbContext.PetFoods.MaxAsync(f => (int?)f.SortOrder) ?? 0;
+                food.SortOrder = maxSort + 1;
+            }
+            food.Name = food.Name.Trim();
+
+            _dbContext.PetFoods.Add(food);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(food);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to create food: {ex.Message}");
+        }
+    }
+
+    [HttpPut("foods/{id}")]
+    public async Task<IActionResult> UpdateFood(long id, [FromBody] PetFood model)
+    {
+        if (string.IsNullOrWhiteSpace(model.Name))
+            return BadRequest("Food name is required.");
+
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            var food = await _dbContext.PetFoods.FindAsync(id);
+            if (food == null) return NotFound("Food not found.");
+
+            bool exists = await _dbContext.PetFoods.AnyAsync(f =>
+                f.Name.ToLower() == model.Name.Trim().ToLower() && f.Id != id);
+
+            if (exists)
+                return Conflict("Another food with the same name exists.");
+
+            food.Name = model.Name.Trim();
+            food.SortOrder = model.SortOrder;
+
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(food);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to update food: {ex.Message}");
+        }
+    }
+
+    [HttpDelete("foods/{id}")]
+    public async Task<IActionResult> DeleteFood(long id)
+    {
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var food = await _dbContext.PetFoods.FindAsync(id);
+            if (food == null) return NotFound("Food not found.");
+            if (string.Equals(food.Name, "other", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(500, "Can't delete 'Other'.");
+
+            var pets = await _dbContext.UserPets
+                .Where(p => p.PetFoodId == id)
+                .ToListAsync();
+
+            foreach (var pet in pets)
+                pet.PetFoodId = null;
+
+            _dbContext.PetFoods.Remove(food);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok("Food deleted and references reset.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to delete food: {ex.Message}");
+        }
+    }
 
 }
