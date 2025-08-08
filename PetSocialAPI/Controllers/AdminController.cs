@@ -1,9 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 using Domain.Entities;
 using Domain.DTOs;
 using Application.Common.Interfaces;
+using CloudinaryDotNet;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Drawing;
 
 namespace PetSocialAPI.Controllers;
 
@@ -549,7 +552,7 @@ public class AdminController : ControllerBase
             return StatusCode(500, $"Failed to delete food: {ex.Message}");
         }
     }
-
+    
     // ---------------------------
     // 🔹 USER TYPES
     // ---------------------------
@@ -704,3 +707,4 @@ public class AdminController : ControllerBase
     }
 
 }
+
