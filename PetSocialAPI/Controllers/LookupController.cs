@@ -51,7 +51,7 @@ public class LookupController : ControllerBase
     public async Task<IActionResult> GetUserTypes()
     {
         var userTypes = await _db.UserTypes
-            .Select(c => new { c.Id, c.Name })
+            .Select(c => new { c.Id, c.Name, c.ImagePath, c.Description })
             .ToListAsync();
 
         return Ok(ApiResponse<object>.Success(userTypes));

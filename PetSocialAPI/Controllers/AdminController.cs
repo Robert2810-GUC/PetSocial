@@ -433,6 +433,274 @@ public class AdminController : ControllerBase
             return StatusCode(500, $"Failed to delete color: {ex.Message}");
         }
     }
+    // ---------------------------
+    // 🔹 PET FOODS
+    // ---------------------------
 
+    [HttpGet("foods")]
+    public async Task<IActionResult> GetFoods(string? search = null)
+    {
+        var query = _dbContext.PetFoods.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(f => f.Name.ToLower().Contains(search.Trim().ToLower()));
+
+        var foods = await query
+            .OrderBy(f => f.SortOrder)
+            .ToListAsync();
+
+        return Ok(foods);
+    }
+
+    [HttpPost("foods")]
+    public async Task<IActionResult> CreateFood([FromBody] PetFood food)
+    {
+        if (string.IsNullOrWhiteSpace(food.Name))
+            return BadRequest("Food name is required.");
+
+        bool exists = await _dbContext.PetFoods.AnyAsync(f => f.Name.ToLower() == food.Name.Trim().ToLower());
+        if (exists)
+            return Conflict("A food with the same name already exists.");
+
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            if (food.SortOrder == 0)
+            {
+                int maxSort = await _dbContext.PetFoods.MaxAsync(f => (int?)f.SortOrder) ?? 0;
+                food.SortOrder = maxSort + 1;
+            }
+            food.Name = food.Name.Trim();
+
+            _dbContext.PetFoods.Add(food);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(food);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to create food: {ex.Message}");
+        }
+    }
+
+    [HttpPut("foods/{id}")]
+    public async Task<IActionResult> UpdateFood(long id, [FromBody] PetFood model)
+    {
+        if (string.IsNullOrWhiteSpace(model.Name))
+            return BadRequest("Food name is required.");
+
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            var food = await _dbContext.PetFoods.FindAsync(id);
+            if (food == null) return NotFound("Food not found.");
+
+            bool exists = await _dbContext.PetFoods.AnyAsync(f =>
+                f.Name.ToLower() == model.Name.Trim().ToLower() && f.Id != id);
+
+            if (exists)
+                return Conflict("Another food with the same name exists.");
+
+            food.Name = model.Name.Trim();
+            food.SortOrder = model.SortOrder;
+
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(food);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to update food: {ex.Message}");
+        }
+    }
+
+    [HttpDelete("foods/{id}")]
+    public async Task<IActionResult> DeleteFood(long id)
+    {
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var food = await _dbContext.PetFoods.FindAsync(id);
+            if (food == null) return NotFound("Food not found.");
+            if (string.Equals(food.Name, "other", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(500, "Can't delete 'Other'.");
+
+            var pets = await _dbContext.UserPets
+                .Where(p => p.PetFoodId == id)
+                .ToListAsync();
+
+            foreach (var pet in pets)
+                pet.PetFoodId = null;
+
+            _dbContext.PetFoods.Remove(food);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok("Food deleted and references reset.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to delete food: {ex.Message}");
+        }
+    }
+
+    // ---------------------------
+    // 🔹 USER TYPES
+    // ---------------------------
+
+    [HttpGet("user-types")]
+    public async Task<IActionResult> GetUserTypes(string? search = null)
+    {
+        var query = _dbContext.UserTypes.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(t => t.Name.ToLower().Contains(search.Trim().ToLower()));
+
+        var types = await query
+            .OrderBy(t => t.Id)
+            .ToListAsync();
+
+        return Ok(types);
+    }
+
+    [HttpPost("user-types")]
+    public async Task<IActionResult> CreateUserType([FromForm] UserTypeDto dto, IFormFile? image)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest("User type name is required.");
+
+        bool exists = await _dbContext.UserTypes.AnyAsync(t =>
+            t.Name.ToLower() == dto.Name.Trim().ToLower());
+
+        if (exists)
+            return Conflict("A user type with the same name already exists.");
+
+        string? uploadedPublicId = null;
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            string imageUrl = "/images/default-user-type.jpg";
+            if (image != null)
+            {
+                var uploadResult = await _imageService.UploadImageAsync(image);
+                imageUrl = uploadResult.Url;
+                uploadedPublicId = uploadResult.PublicId;
+            }
+
+            var type = new UserType
+            {
+                Name = dto.Name.Trim(),
+                Description = dto.Description?.Trim() ?? string.Empty,
+                ImagePath = imageUrl
+            };
+
+            _dbContext.UserTypes.Add(type);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(type);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            if (!string.IsNullOrEmpty(uploadedPublicId))
+            {
+                try { await _imageService.DeleteImageAsync(uploadedPublicId); } catch { }
+            }
+            return StatusCode(500, $"Failed to create user type: {ex.Message}");
+        }
+    }
+
+    [HttpPut("user-types/{id}")]
+    public async Task<IActionResult> UpdateUserType(long id, [FromForm] UserTypeDto dto, IFormFile? image)
+    {
+        string? newUploadedPublicId = null;
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+        try
+        {
+            var type = await _dbContext.UserTypes.FindAsync(id);
+            if (type == null)
+                return NotFound("User type not found.");
+
+            bool nameTaken = await _dbContext.UserTypes.AnyAsync(t =>
+                t.Name.ToLower() == dto.Name.Trim().ToLower() && t.Id != id);
+
+            if (nameTaken)
+                return Conflict("Another user type with the same name already exists.");
+
+            type.Name = dto.Name.Trim();
+            type.Description = dto.Description?.Trim() ?? string.Empty;
+
+            if (image != null)
+            {
+                if (!string.IsNullOrEmpty(type.ImagePath) && type.ImagePath.Contains("res.cloudinary.com"))
+                {
+                    try
+                    {
+                        var uri = new Uri(type.ImagePath);
+                        var segments = uri.AbsolutePath.Split('/');
+                        var filename = segments.Last();
+                        var publicId = filename[..filename.LastIndexOf('.')];
+                        await _imageService.DeleteImageAsync(publicId);
+                    }
+                    catch (Exception ex) { }
+                }
+
+                var uploadResult = await _imageService.UploadImageAsync(image);
+                type.ImagePath = uploadResult.Url;
+                newUploadedPublicId = uploadResult.PublicId;
+            }
+
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(type);
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            if (!string.IsNullOrEmpty(newUploadedPublicId))
+            {
+                try { await _imageService.DeleteImageAsync(newUploadedPublicId); } catch { }
+            }
+
+            return StatusCode(500, $"Failed to update user type: {ex.Message}");
+        }
+    }
+
+    [HttpDelete("user-types/{id}")]
+    public async Task<IActionResult> DeleteUserType(long id)
+    {
+        using var tx = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var type = await _dbContext.UserTypes.FindAsync(id);
+            if (type == null) return NotFound("User type not found.");
+            if (string.Equals(type.Name, "other", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(500, "Can't delete Other.");
+
+            await _dbContext.Users
+                .Where(u => u.UserTypeId == id)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.UserTypeId, 0));
+
+            _dbContext.UserTypes.Remove(type);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok("User type deleted and references reset.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, $"Failed to delete user type: {ex.Message}");
+        }
+    }
 
 }
