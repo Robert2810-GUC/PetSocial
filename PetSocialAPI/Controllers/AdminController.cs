@@ -440,7 +440,7 @@ public class AdminController : ControllerBase
     // 🔹 PET FOODS
     // ---------------------------
 
-    [HttpGet("foods")]
+    [HttpGet("pet-foods")]
     public async Task<IActionResult> GetFoods(string? search = null)
     {
         var query = _dbContext.PetFoods.AsQueryable();
@@ -455,7 +455,7 @@ public class AdminController : ControllerBase
         return Ok(foods);
     }
 
-    [HttpPost("foods")]
+    [HttpPost("pet-foods")]
     public async Task<IActionResult> CreateFood([FromBody] PetFood food)
     {
         if (string.IsNullOrWhiteSpace(food.Name))
@@ -489,7 +489,7 @@ public class AdminController : ControllerBase
         }
     }
 
-    [HttpPut("foods/{id}")]
+    [HttpPut("pet-foods/{id}")]
     public async Task<IActionResult> UpdateFood(long id, [FromBody] PetFood model)
     {
         if (string.IsNullOrWhiteSpace(model.Name))
@@ -523,7 +523,7 @@ public class AdminController : ControllerBase
         }
     }
 
-    [HttpDelete("foods/{id}")]
+    [HttpDelete("pet-foods/{id}")]
     public async Task<IActionResult> DeleteFood(long id)
     {
         using var tx = await _dbContext.Database.BeginTransactionAsync();
@@ -687,8 +687,8 @@ public class AdminController : ControllerBase
         {
             var type = await _dbContext.UserTypes.FindAsync(id);
             if (type == null) return NotFound("User type not found.");
-            if (string.Equals(type.Name, "other", StringComparison.OrdinalIgnoreCase))
-                return StatusCode(500, "Can't delete Other.");
+            if (string.Equals(type.Name, "Pet Owner", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(500, "Can't delete Pet Owner.");
 
             await _dbContext.Users
                 .Where(u => u.UserTypeId == id)
