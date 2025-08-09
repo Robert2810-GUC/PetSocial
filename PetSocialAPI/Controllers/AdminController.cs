@@ -1,27 +1,21 @@
+using Application.Common.Interfaces;
+using Domain.DTOs;
+using Domain.Entities;
+using Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
-using Domain.Entities;
-using Domain.DTOs;
-using Application.Common.Interfaces;
-using CloudinaryDotNet;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using System.Drawing;
 
 namespace PetSocialAPI.Controllers;
 
+[Authorize(Roles = nameof(UserTypeEnum.Admin))]
 [ApiController]
 [Route("api/[controller]")]
-public class AdminController : ControllerBase
+public class AdminController(ApplicationDbContext db, IImageService imageService) : ControllerBase
 {
-    private readonly ApplicationDbContext _dbContext;
-    private readonly IImageService _imageService;
-
-    public AdminController(ApplicationDbContext db, IImageService imageService)
-    {
-        _dbContext = db;
-        _imageService = imageService;
-    }
+    private readonly ApplicationDbContext _dbContext = db;
+    private readonly IImageService _imageService = imageService;
 
     // ---------------------------
     // 🔹 PET TYPES
