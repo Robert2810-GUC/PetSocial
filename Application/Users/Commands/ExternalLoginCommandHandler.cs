@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using Persistence;
 using System.IdentityModel.Tokens.Jwt;
 using Application.Users.Commands;
+using System.Linq;
 
 public class ExternalLoginCommandHandler : IRequestHandler<ExternalLoginCommand, ApiResponse<TokenResult>>
 {
@@ -132,10 +133,25 @@ public class ExternalLoginCommandHandler : IRequestHandler<ExternalLoginCommand,
             }
         }
 
+        // Additional info
+        var profile = _dbContext.Users.FirstOrDefault(u => u.IdentityId == user.Id);
+        bool isPetRegistered = false;
+        bool isProfileUpdated = false;
+        string userName = profile?.Name ?? name ?? email;
+
+        if (profile != null)
+        {
+            isPetRegistered = _dbContext.UserPets.Any(p => p.UserId == profile.Id);
+            isProfileUpdated = isPetRegistered && _dbContext.PetOwnerProfiles.Any(p => p.UserId == profile.Id);
+        }
+
         // Issue JWT
         var tokenResult = new TokenResult
         {
-            Token = _jwtTokenService.GenerateToken(user.Id, user.Email, user.UserName)
+            Token = _jwtTokenService.GenerateToken(user.Id, user.Email, user.UserName),
+            IsPetRegistered = isPetRegistered,
+            IsProfileUpdated = isProfileUpdated,
+            UserName = userName
         };
         return ApiResponse<TokenResult>.Success(tokenResult, "Login successful!", 200);
     }

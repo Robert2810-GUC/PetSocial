@@ -9,4 +9,7 @@ namespace Application.Common.Models;
 public class TokenResult
 {
     public string Token { get; set; }
+    public bool IsPetRegistered { get; set; }
+    public bool IsProfileUpdated { get; set; }
+    public string UserName { get; set; }
 }
