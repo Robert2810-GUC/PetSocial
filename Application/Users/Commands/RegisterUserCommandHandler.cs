@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Persistence;
+using System.Linq;
 
 namespace Application.Users.Commands;
 
@@ -113,7 +114,13 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
 
             await transaction.CommitAsync(cancellationToken);
 
-            var tokenResult = new TokenResult { Token = generateTokenTask.Result };
+            var tokenResult = new TokenResult
+            {
+                Token = generateTokenTask.Result,
+                IsPetRegistered = false,
+                IsProfileUpdated = false,
+                UserName = request.Name
+            };
 
             return ApiResponse<TokenResult>.Success(tokenResult, "User registered successfully!", 201);
 

@@ -6,6 +6,7 @@ using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Persistence;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -57,9 +58,27 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         if (!isPasswordValid)
             return ApiResponse<TokenResult>.Fail("Invalid credentials.", 401);
 
+        // Additional info
+        var user = _dbContext.Users.FirstOrDefault(u => u.IdentityId == identityUser.Id);
+        bool isPetRegistered = false;
+        bool isProfileUpdated = false;
+        string userName = user?.Name;
+
+        if (user != null)
+        {
+            isPetRegistered = _dbContext.UserPets.Any(p => p.UserId == user.Id);
+            isProfileUpdated = isPetRegistered && _dbContext.PetOwnerProfiles.Any(p => p.UserId == user.Id);
+        }
+
         // Generate JWT
         var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, identityUser.UserName);
-        var tokenResult = new TokenResult { Token = token };
+        var tokenResult = new TokenResult
+        {
+            Token = token,
+            IsPetRegistered = isPetRegistered,
+            IsProfileUpdated = isProfileUpdated,
+            UserName = userName
+        };
 
         return ApiResponse<TokenResult>.Success(tokenResult, "Login successful!", 200);
     }
