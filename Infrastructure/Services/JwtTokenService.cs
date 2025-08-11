@@ -15,14 +15,16 @@ public class JwtTokenService : IJwtTokenService
         _config = config;
     }
 
-    public string GenerateToken(string userId, string email, string userName = null)
+    public string GenerateToken(string userId, string email, string role, string userName = null)
     {
         var claims = new List<Claim>
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, userId),
-            new Claim(JwtRegisteredClaimNames.Email, email ?? ""),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-        };
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, userId),
+        new Claim(JwtRegisteredClaimNames.Email, email ?? ""),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new Claim(ClaimTypes.Role, role)
+    };
+
         if (!string.IsNullOrWhiteSpace(userName))
             claims.Add(new Claim(JwtRegisteredClaimNames.UniqueName, userName));
 
@@ -38,4 +40,5 @@ public class JwtTokenService : IJwtTokenService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
 }

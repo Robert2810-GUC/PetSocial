@@ -108,7 +108,9 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
 
             var generateTokenTask = Task.Run(() =>
             {
-                return _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, identityUser.UserName);
+                var roles = _userManager.GetRolesAsync(identityUser).GetAwaiter().GetResult();
+                var role = roles.FirstOrDefault() ?? string.Empty;
+                return _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, role, identityUser.UserName);
             });
 
             await Task.WhenAll(addUserLoginTask, generateTokenTask);

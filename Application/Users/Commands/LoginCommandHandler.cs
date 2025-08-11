@@ -62,7 +62,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         var user = _dbContext.Users.FirstOrDefault(u => u.IdentityId == identityUser.Id);
         bool isPetRegistered = false;
         bool isProfileUpdated = false;
-        string userName = user?.Name;
+        string userName = user != null ? user?.Name != null ? user.Name.Trim() : "User" : string.Empty;
 
         if (user != null)
         {
@@ -70,14 +70,17 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
             isProfileUpdated = isPetRegistered && _dbContext.PetOwnerProfiles.Any(p => p.UserId == user.Id);
         }
 
+
+        var roles = await _userManager.GetRolesAsync(identityUser);
+        var role = roles.FirstOrDefault() ?? string.Empty;
         // Generate JWT
-        var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, identityUser.UserName);
+        var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, role, identityUser.UserName);
         var tokenResult = new TokenResult
         {
             Token = token,
             IsPetRegistered = isPetRegistered,
             IsProfileUpdated = isProfileUpdated,
-            UserName = userName.Trim()
+            UserName = userName
         };
 
         return ApiResponse<TokenResult>.Success(tokenResult, "Login successful!", 200);
