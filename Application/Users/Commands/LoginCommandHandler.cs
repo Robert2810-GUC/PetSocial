@@ -5,6 +5,7 @@ using Application.Common.Models;
 using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Persistence;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,6 +35,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
             return ApiResponse<TokenResult>.Fail("Password is required.", 400);
 
         IdentityUser identityUser = null;
+        User userProfile = null;
 
         if (!string.IsNullOrWhiteSpace(request.Email))
         {
@@ -42,7 +44,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         else if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
         {
             // Find custom User entity by phone, then get IdentityId
-            var userProfile = _dbContext.Users.FirstOrDefault(u => u.PhoneNumber == $"{request.CountryCode}{request.PhoneNumber}");
+            userProfile = await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.PhoneNumber == $"{request.CountryCode}{request.PhoneNumber}");
             if (userProfile != null)
             {
                 identityUser = await _userManager.FindByIdAsync(userProfile.IdentityId);
@@ -57,9 +60,30 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         if (!isPasswordValid)
             return ApiResponse<TokenResult>.Fail("Invalid credentials.", 401);
 
+        if (userProfile == null)
+        {
+            userProfile = await _dbContext.Users.FirstOrDefaultAsync(u => u.IdentityId == identityUser.Id);
+        }
+
+        var isProfileUpdate = userProfile != null;
+        var isPetRegistered = false;
+        string userName = identityUser.UserName;
+
+        if (isProfileUpdate)
+        {
+            userName = userProfile.Name;
+            isPetRegistered = await _dbContext.UserPets.AnyAsync(p => p.UserId == userProfile.Id);
+        }
+
         // Generate JWT
         var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, identityUser.UserName);
-        var tokenResult = new TokenResult { Token = token };
+        var tokenResult = new TokenResult
+        {
+            Token = token,
+            IsPetRegistered = isPetRegistered,
+            IsProfileUpdate = isProfileUpdate,
+            UserName = userName
+        };
 
         return ApiResponse<TokenResult>.Success(tokenResult, "Login successful!", 200);
     }
