@@ -77,7 +77,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
             Token = token,
             IsPetRegistered = isPetRegistered,
             IsProfileUpdated = isProfileUpdated,
-            UserName = userName
+            UserName = userName.Trim()
         };
 
         return ApiResponse<TokenResult>.Success(tokenResult, "Login successful!", 200);

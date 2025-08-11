@@ -52,20 +52,20 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
             {
                 UserId = user.Id,
                 PetTypeId = request.PetTypeId,
-                CustomPetTypeName = request.PetTypeId == ReservedIds.PetTypeOther ? request.CustomPetTypeName : null,
-                PetName = request.PetName,
-                PetFoundAt = request.PetFoundAt,
+                CustomPetTypeName = request.PetTypeId == ReservedIds.PetTypeOther ? request.CustomPetTypeName.Trim() : null,
+                PetName = request.PetName.Trim(),
+                PetFoundAt = request.PetFoundAt.Trim(),
                 ImagePath = imageUrl ?? "/images/default-pet.jpg",
                 Gender = request.Gender,
                 DOB = request.DOB,
                 PetBreedId = request.PetBreedId,
-                CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed : null,
+                CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed.Trim()     : null,
                 Food = request.Food,
                 Weight = request.Weight,
                 WeightUnit = request.WeightUnit,
-                Character = request.Character,
+                Character = request.Character.Trim(),
                 PetFoodId = request.PetFoodId,
-                CustomFood = (request.PetFoodId == ReservedIds.FoodOther) ? request.CustomFood : null,
+                CustomFood = (request.PetFoodId == ReservedIds.FoodOther) ? request.CustomFood.Trim() : null,
             };
             _dbContext.UserPets.Add(pet);
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -110,7 +110,7 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                             _dbContext.UserPetMixColors.Add(new UserPetMixColor
                             {
                                 UserPetColorId = petColor.Id,
-                                Color = mix.Color,
+                                Color = mix.Color.Trim(),
                                 Percentage = mix.Percentage
                             });
                         }

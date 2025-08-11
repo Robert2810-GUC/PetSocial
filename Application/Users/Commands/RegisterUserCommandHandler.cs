@@ -88,8 +88,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                 var userProfile = new User
                 {
                     IdentityId = identityUser.Id,
-                    Name = request.Name,
-                    PhoneNumber = request.PhoneNumber,
+                    Name = request.Name.Trim(),
+                    PhoneNumber = request.PhoneNumber.Trim(),
                     CountryCode = request.CountryCode,
                     UserTypeId = request.UserTypeId
                 };
@@ -119,7 +119,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                 Token = generateTokenTask.Result,
                 IsPetRegistered = false,
                 IsProfileUpdated = false,
-                UserName = request.Name
+                UserName = request.Name.Trim()
             };
 
             return ApiResponse<TokenResult>.Success(tokenResult, "User registered successfully!", 201);
