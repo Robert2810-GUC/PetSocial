@@ -12,6 +12,9 @@ public class User
     public string IdentityId { get; set; }
     public long UserTypeId { get; set; }
 
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
     // Navigation properties
     public UserType UserType { get; set; }
     public PetOwnerProfile PetOwnerProfile { get; set; }

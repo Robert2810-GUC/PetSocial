@@ -24,6 +24,11 @@ public class UserPet
     public PetType? PetType { get; set; }
     public PetBreed? PetBreed { get; set; }
     public PetFood PetFood { get; set; }
+
+
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
     public ICollection<UserPetOtherBreed>? UserPetOtherBreeds { get; set; }
     public ICollection<UserPetColor>? UserPetColors { get; set; }
 }

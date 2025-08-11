@@ -37,6 +37,8 @@ public class OtherUserInfoCommandHandler : IRequestHandler<OtherUserInfoCommand,
 
 
             user.Email = request.Email;
+            user.UpdatedAt = DateTime.Now;
+
             _dbContext.Users.Update(user);
 
 
@@ -72,6 +74,7 @@ public class OtherUserInfoCommandHandler : IRequestHandler<OtherUserInfoCommand,
                 profile.Gender = request.Gender;
                 profile.DOB = request.DOB;
                 profile.ImagePath = imageUrl;
+                profile.UpdatedAt = DateTime.Now;
 
                 _dbContext.PetOwnerProfiles.Update(profile);
             }

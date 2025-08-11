@@ -91,7 +91,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                     Name = request.Name.Trim(),
                     PhoneNumber = request.PhoneNumber.Trim(),
                     CountryCode = request.CountryCode,
-                    UserTypeId = request.UserTypeId
+                    UserTypeId = request.UserTypeId,
+
                 };
                 _dbContext.Users.Add(userProfile);
                 await _dbContext.SaveChangesAsync(cancellationToken);

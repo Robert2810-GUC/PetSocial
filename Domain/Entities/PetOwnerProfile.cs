@@ -12,6 +12,8 @@ public class PetOwnerProfile
     public string Gender { get; set; }
     public DateTime? DOB { get; set; }
     public string ImagePath { get; set; }
-    
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
     public User User { get; set; }
 }
