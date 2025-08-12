@@ -32,105 +32,113 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
 
     public async Task<ApiResponse<TokenResult>> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
-        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        // ---- 0) Fast input normalization
+        var name = request.Name?.Trim();
+        var rawPhone = request.PhoneNumber?.Trim();
+        var countryCode = request.CountryCode?.Trim();
+        var password = request.Password; // NOTE: validated below
+        var phoneKey = $"{countryCode}{rawPhone}";
 
+        // ---- 1) Validate required fields (fail fast)
+        if (string.IsNullOrWhiteSpace(rawPhone))
+            return ApiResponse<TokenResult>.Fail("Phone is required.", 400);
+        if (string.IsNullOrWhiteSpace(name))
+            return ApiResponse<TokenResult>.Fail("Name is required.", 400);
+        if (string.IsNullOrWhiteSpace(password))
+            return ApiResponse<TokenResult>.Fail("Password is required.", 400);
+        if (string.IsNullOrWhiteSpace(countryCode))
+            return ApiResponse<TokenResult>.Fail("Country code is required.", 400);
+
+        // ---- 2) Uniqueness (async, single DB call)
+        var phoneExists = await _userManager.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.PhoneNumber == phoneKey, cancellationToken);
+        if (phoneExists)
+            return ApiResponse<TokenResult>.Fail("Phone already registered.", 409);
+
+        // ---- 3) OTP check (single row, most-recent, tracked because we set IsUsed)
+        var otpEntity = await _dbContext.UserOtps
+            .Where(x => x.CountryCode == countryCode
+                     && x.PhoneNumber == rawPhone
+                     && x.Otp == request.Otp
+                     && !x.IsUsed
+                     && x.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(x => x.ExpiresAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (otpEntity == null)
+            return ApiResponse<TokenResult>.Fail("Invalid or expired OTP.", 400);
+
+        // Start one SQL transaction shared by Identity + your DbContext
+        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            // 1. Validate inputs
-            //if (string.IsNullOrWhiteSpace(request.Email))
-            //    return ApiResponse<TokenResult>.Fail("Email is required.", 400);
-            if (string.IsNullOrWhiteSpace(request.PhoneNumber))
-                return ApiResponse<TokenResult>.Fail("Phone is required.", 400);
-            if (string.IsNullOrWhiteSpace(request.Name))
-                return ApiResponse<TokenResult>.Fail("Name is required.", 400);
-            if (string.IsNullOrWhiteSpace(request.Password))
-                return ApiResponse<TokenResult>.Fail("Password is required.", 400);
+            var identityUser = new IdentityUser
+            {
+                UserName = phoneKey,   
+                PhoneNumber = phoneKey
+            };
 
-            // 2. Check uniqueness
-            //var emailExists = !string.IsNullOrEmpty(request.Email) && await _userManager.FindByEmailAsync(request.Email) != null;
-            var phoneExists = _userManager.Users.Any(u => u.PhoneNumber == $"{request.CountryCode}{request.PhoneNumber}");
-            //if (emailExists)
-            //    return ApiResponse<TokenResult>.Fail("Email already registered.", 409);
-            if (phoneExists)
-                return ApiResponse<TokenResult>.Fail("Phone already registered.", 409);
+            var createRes = await _userManager.CreateAsync(identityUser, password);
+            if (!createRes.Succeeded)
+            {
+                var msg = string.Join(", ", createRes.Errors.Select(e => e.Description));
+                return ApiResponse<TokenResult>.Fail("Registration failed: " + msg, 400);
+            }
 
-            var otpEntity = await _dbContext.UserOtps
-                .Where(x => x.CountryCode == request.CountryCode && x.PhoneNumber == request.PhoneNumber && x.Otp == request.Otp && !x.IsUsed && x.ExpiresAt > DateTime.UtcNow)
-                .OrderByDescending(x => x.ExpiresAt)
-                .FirstOrDefaultAsync();
-
-            if (otpEntity == null)
-                return ApiResponse<TokenResult>.Fail("Invalid or expired OTP.", 400);
+            // ---- 5) Assign role (no later fetch needed)
+            const string assignedRole = "User";
+            var roleRes = await _userManager.AddToRoleAsync(identityUser, assignedRole);
+            if (!roleRes.Succeeded)
+            {
+                var msg = string.Join(", ", roleRes.Errors.Select(e => e.Description));
+                return ApiResponse<TokenResult>.Fail("Registration failed: " + msg, 400);
+            }
 
             otpEntity.IsUsed = true;
 
-            // 3. Create Identity User
-            var identityUser = new IdentityUser
+            var userProfile = new User
             {
-                UserName = $"{request.CountryCode}{request.PhoneNumber}",
-                PhoneNumber = $"{request.CountryCode}{request.PhoneNumber}"
+                IdentityId = identityUser.Id,
+                Name = name!,
+                PhoneNumber = rawPhone!,    
+                CountryCode = countryCode!,
+                UserTypeId = request.UserTypeId
             };
+            _dbContext.Users.Add(userProfile);
 
-            var result = await _userManager.CreateAsync(identityUser, request.Password);
-            if (!result.Succeeded)
-                return ApiResponse<TokenResult>.Fail(
-                    "Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)), 400);
-
-            var roleresult = await _userManager.AddToRoleAsync(identityUser, "User");
-            if (!roleresult.Succeeded)
-                return ApiResponse<TokenResult>.Fail(
-                    "Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)), 400);
-
-
-            // Now you can parallelize
-            var addUserLoginTask = Task.Run(async () =>
+            var userLogin = new UserLogin
             {
-                var userProfile = new User
-                {
-                    IdentityId = identityUser.Id,
-                    Name = request.Name.Trim(),
-                    PhoneNumber = request.PhoneNumber.Trim(),
-                    CountryCode = request.CountryCode,
-                    UserTypeId = request.UserTypeId,
+                UserId = userProfile.Id,
+                Password = password 
+            };
+            _dbContext.UserLogins.Add(userLogin);
 
-                };
-                _dbContext.Users.Add(userProfile);
-                await _dbContext.SaveChangesAsync(cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
 
-                var userLogins = new UserLogin
-                {
-                    UserId = userProfile.Id,
-                    Password = request.Password,
-                };
-                _dbContext.UserLogins.Add(userLogins);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }, cancellationToken);
 
-            var generateTokenTask = Task.Run(() =>
-            {
-                var roles = _userManager.GetRolesAsync(identityUser).GetAwaiter().GetResult();
-                var role = roles.FirstOrDefault() ?? string.Empty;
-                return _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, role, identityUser.UserName);
-            });
+            var jwt = _jwtTokenService.GenerateToken(
+                identityUser.Id,
+                identityUser.Email,      
+                assignedRole,
+                identityUser.UserName
+            );
 
-            await Task.WhenAll(addUserLoginTask, generateTokenTask);
-
-            await transaction.CommitAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);            
 
             var tokenResult = new TokenResult
             {
-                Token = generateTokenTask.Result,
+                Token = jwt,
                 IsPetRegistered = false,
                 IsProfileUpdated = false,
-                UserName = request.Name.Trim()
+                UserName = name!
             };
 
             return ApiResponse<TokenResult>.Success(tokenResult, "User registered successfully!", 201);
-
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await tx.RollbackAsync(cancellationToken);
             return ApiResponse<TokenResult>.Fail("Registration error: " + ex.Message, 500);
         }
     }
