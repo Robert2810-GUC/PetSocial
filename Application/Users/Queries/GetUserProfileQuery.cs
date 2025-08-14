@@ -29,6 +29,7 @@ public class PetOwnerProfileDto
     public string Gender { get; set; }
     public DateTime? DOB { get; set; }
     public string ImagePath { get; set; }
+    public string? Bio { get; set; }
 }
 
 public class PetBusinessProfileDto
@@ -78,7 +79,8 @@ public class GetUserProfileQueryHandler : IRequestHandler<GetUserProfileQuery, A
             {
                 Gender = user.PetOwnerProfile.Gender,
                 DOB = user.PetOwnerProfile.DOB,
-                ImagePath = user.PetOwnerProfile.ImagePath
+                ImagePath = user.PetOwnerProfile.ImagePath,
+                Bio = user.PetOwnerProfile.Bio
             },
             BusinessProfile = user.PetBusinessProfile == null ? null : new PetBusinessProfileDto
             {
