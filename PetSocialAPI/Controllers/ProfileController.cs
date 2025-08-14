@@ -1,6 +1,7 @@
 using Application.Common.Models;
 using Application.Users.Queries;
 using Application.Pets.Queries;
+using Application.Users.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,6 +30,20 @@ public class ProfileController : ControllerBase
             return Unauthorized(ApiResponse<string>.Fail("Invalid token.", 401));
 
         var result = await _mediator.Send(new GetUserProfileQuery { IdentityId = identityId });
+        return StatusCode(result.StatusCode, result);
+    }
+
+    [HttpPut("user")]
+    public async Task<IActionResult> UpdateUserProfile([FromForm] UpdateUserProfileCommand command)
+    {
+        var identityId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(identityId))
+            return Unauthorized(ApiResponse<string>.Fail("Invalid token.", 401));
+
+        command.IdentityId = identityId;
+        var result = await _mediator.Send(command);
         return StatusCode(result.StatusCode, result);
     }
 
