@@ -122,7 +122,7 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                     catch (JsonException je)
                     {
                         await tx.RollbackAsync(cancellationToken);
-                        return ApiResponse<long>.Fail($"Your Sent MizColorJSON:{request.MixColors} \nInvalid MixColors JSON: {je.Message}", 400);
+                        return ApiResponse<long>.Fail($"Your Sent MixColorJSON:{request.MixColors} \nInvalid MixColors JSON: {je.Message}", 400);
                     }
                 }
             }
