@@ -7,10 +7,10 @@ public class UpdatePetProfileCommand : IRequest<ApiResponse<long>>
 {
     public string? IdentityId { get; set; }
     public long PetId { get; set; }
-    public long PetTypeId { get; set; }
-    public string? CustomPetTypeName { get; set; }
-    public string? CustomPetBreed { get; set; }
-    public string PetFoundAt { get; set; }
+    //public long PetTypeId { get; set; }
+    //public string? CustomPetTypeName { get; set; }
+    //public string? CustomPetBreed { get; set; }
+    //public string PetFoundAt { get; set; }
     public IFormFile? Image { get; set; }
     public string PetName { get; set; }
 

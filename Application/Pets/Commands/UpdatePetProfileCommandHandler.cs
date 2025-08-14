@@ -50,15 +50,15 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
                 uploadedPublicId = uploadResult.PublicId;
             }
 
-            pet.PetTypeId = request.PetTypeId;
-            pet.CustomPetTypeName = request.PetTypeId == ReservedIds.PetTypeOther ? request.CustomPetTypeName?.Trim() : null;
+            //pet.PetTypeId = request.PetTypeId;
+            //pet.CustomPetTypeName = request.PetTypeId == ReservedIds.PetTypeOther ? request.CustomPetTypeName?.Trim() : null;
             pet.PetName = request.PetName.Trim();
-            pet.PetFoundAt = request.PetFoundAt.Trim();
+            //pet.PetFoundAt = request.PetFoundAt.Trim();
             pet.ImagePath = imageUrl;
             pet.Gender = request.Gender;
             pet.DOB = request.DOB;
             pet.PetBreedId = request.PetBreedId;
-            pet.CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed?.Trim() : null;
+            //pet.CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed?.Trim() : null;
             pet.Food = request.Food;
             pet.Weight = request.Weight;
             pet.WeightUnit = request.WeightUnit;
