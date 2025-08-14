@@ -8,7 +8,7 @@ using Domain.Entities;
 using Application.Common;
 using System.Text.Json;
 
-namespace Application.Users.Commands;
+namespace Application.Pets.Commands;
 
 public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, ApiResponse<long>>
 {
