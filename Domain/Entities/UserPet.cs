@@ -23,7 +23,7 @@ public class UserPet
     public User? User { get; set; }
     public PetType? PetType { get; set; }
     public PetBreed? PetBreed { get; set; }
-    public PetFood PetFood { get; set; }
+    public PetFood? PetFood { get; set; }
 
 
 

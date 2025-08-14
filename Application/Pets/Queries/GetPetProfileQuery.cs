@@ -44,6 +44,7 @@ public class PetDetailDto
     public List<MixColorDetailDto> MixColors { get; set; } = new();
     public string? Food { get; set; }
     public long? PetFoodId { get; set; }
+    public string? PetFoodName { get; set; }
     public string? CustomFood { get; set; }
     public decimal? Weight { get; set; }
     public string? WeightUnit { get; set; }
@@ -84,6 +85,7 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
         var pet = await _dbContext.UserPets
             .Include(p => p.PetType)
             .Include(p => p.PetBreed)
+            .Include(p => p.PetFood)
             .Include(p => p.UserPetColors).ThenInclude(pc => pc.UserPetMixColors)
             .Include(p => p.UserPetOtherBreeds)
             .FirstOrDefaultAsync(p => p.Id == selectedPetId && p.UserId == user.Id, cancellationToken);
@@ -107,6 +109,7 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
             CustomPetBreed = pet.CustomPetBreed,
             Food = pet.Food,
             PetFoodId = pet.PetFoodId,
+            PetFoodName = pet.PetFood?.Name,
             CustomFood = pet.CustomFood,
             Weight = pet.Weight,
             WeightUnit = pet.WeightUnit,

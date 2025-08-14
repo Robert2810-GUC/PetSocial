@@ -32,7 +32,7 @@ public class PetsController : ControllerBase
         command.IdentityId = userId;
 
         var result = await _mediator.Send(command);
-        return StatusCode(result.StatusCode, result);
+            return StatusCode(result.StatusCode, result);
     }
 }
 
