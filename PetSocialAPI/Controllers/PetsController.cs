@@ -34,6 +34,21 @@ public class PetsController : ControllerBase
         var result = await _mediator.Send(command);
             return StatusCode(result.StatusCode, result);
     }
+
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromForm] UpdatePetProfileCommand command)
+    {
+        var userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(ApiResponse<string>.Fail("Invalid token.", 401));
+
+        command.IdentityId = userId;
+        var result = await _mediator.Send(command);
+        return StatusCode(result.StatusCode, result);
+    }
 }
 
  
