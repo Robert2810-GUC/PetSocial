@@ -5,6 +5,7 @@ using Application.Users.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Application.Pets.Commands;
 
 namespace PetSocialAPI.Controllers;
 
@@ -46,7 +47,6 @@ public class ProfileController : ControllerBase
         var result = await _mediator.Send(command);
         return StatusCode(result.StatusCode, result);
     }
-
     [HttpGet("pet")]
     public async Task<IActionResult> GetPetProfile([FromQuery] long? petId)
     {
@@ -60,5 +60,22 @@ public class ProfileController : ControllerBase
         var result = await _mediator.Send(query);
         return StatusCode(result.StatusCode, result);
     }
+
+    [HttpPut("pet")]
+    public async Task<IActionResult> UpdateProfile([FromForm] UpdatePetProfileCommand command)
+    {
+        var userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(ApiResponse<string>.Fail("Invalid token.", 401));
+
+        command.IdentityId = userId;
+        var result = await _mediator.Send(command);
+        return StatusCode(result.StatusCode, result);
+    }
+
+
 }
 
