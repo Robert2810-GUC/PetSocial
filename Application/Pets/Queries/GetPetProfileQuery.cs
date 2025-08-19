@@ -22,6 +22,8 @@ public class PetSummaryDto
 {
     public long Id { get; set; }
     public string PetName { get; set; }
+
+    public bool IsGoldPaw {  get; set; }
 }
 
 public class PetDetailDto
@@ -77,7 +79,7 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
 
         var pets = await _dbContext.UserPets
             .Where(p => p.UserId == user.Id)
-            .Select(p => new PetSummaryDto { Id = p.Id, PetName = p.PetName })
+            .Select(p => new PetSummaryDto { Id = p.Id, PetName = p.PetName, IsGoldPaw = (p.IsGoldPaw.HasValue) ? p.IsGoldPaw.Value : false })
             .ToListAsync(cancellationToken);
 
         if (!pets.Any())
