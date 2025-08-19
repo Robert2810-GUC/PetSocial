@@ -102,23 +102,30 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                 // 6. Insert mix colors if any
                 if (request.PetColorId == ReservedIds.ColorMix && !string.IsNullOrEmpty(request.MixColors))
                 {
-                    var mixColors = JsonSerializer.Deserialize<List<MixColorDto>>(
-                        request.MixColors,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                    );
-                    if (mixColors != null && mixColors.Count > 0)
+                    try
                     {
-                        foreach (var mix in mixColors)
-                        {
-                            _dbContext.UserPetMixColors.Add(new UserPetMixColor
-                            {
-                                UserPetColorId = petColor.Id,
-                                Color = mix.Color.Trim(),
-                                Percentage = mix.Percentage
-                            });
-                        }
+                        var mixColors = JsonSerializer.Deserialize<List<MixColorDto>>(
+                            request.MixColors,
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                        anyDBQuery = true;
+                        if (mixColors is { Count: > 0 })
+                        {
+                            foreach (var mix in mixColors)
+                            {
+                                _dbContext.UserPetMixColors.Add(new UserPetMixColor
+                                {
+                                    UserPetColorId = petColor.Id,
+                                    Color = mix.Color.Trim(),
+                                    Percentage = mix.Percentage
+                                });
+                            }
+                            anyDBQuery = true;
+                        }
+                    }
+                    catch (JsonException je)
+                    {
+                        await tx.RollbackAsync(cancellationToken);
+                        return ApiResponse<long>.Fail($"Your Sent MixColorJSON:{request.MixColors} \nInvalid MixColors JSON: {je.Message}", 400);
                     }
                 }
             }
