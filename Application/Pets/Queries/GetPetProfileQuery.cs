@@ -1,4 +1,5 @@
 using Application.Common.Models;
+using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
@@ -41,6 +42,7 @@ public class PetDetailDto
     public string? FirstBreed { get; set; }
     public string? SecondBreed { get; set; }
     public long? PetColorId { get; set; }
+    public string? PetColorName { get; set; }
     public List<MixColorDetailDto> MixColors { get; set; } = new();
     public string? Food { get; set; }
     public long? PetFoodId { get; set; }
@@ -49,6 +51,7 @@ public class PetDetailDto
     public decimal? Weight { get; set; }
     public string? WeightUnit { get; set; }
     public string? Character { get; set; }
+    public bool? IsGoldPaw { get; set; } = false;
 }
 
 public class MixColorDetailDto
@@ -83,15 +86,21 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
         var selectedPetId = request.PetId ?? pets.First().Id;
 
         var pet = await _dbContext.UserPets
+            .AsNoTracking()
             .Include(p => p.PetType)
             .Include(p => p.PetBreed)
             .Include(p => p.PetFood)
-            .Include(p => p.UserPetColors).ThenInclude(pc => pc.UserPetMixColors)
+            .Include(p => p.UserPetColors)
+                .ThenInclude(upc => upc.PetColor)
+            .Include(p => p.UserPetColors)
+                .ThenInclude(upc => upc.UserPetMixColors)
             .Include(p => p.UserPetOtherBreeds)
             .FirstOrDefaultAsync(p => p.Id == selectedPetId && p.UserId == user.Id, cancellationToken);
 
         if (pet == null)
             return ApiResponse<PetProfileResult>.Fail("Pet not found.", 404);
+
+        var upc = pet.UserPetColors?.FirstOrDefault();
 
         var detail = new PetDetailDto
         {
@@ -114,14 +123,26 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
             Weight = pet.Weight,
             WeightUnit = pet.WeightUnit,
             Character = pet.Character,
+            IsGoldPaw = pet.IsGoldPaw,
+
+            // other-breed flags
             IsMixedBreed = pet.UserPetOtherBreeds != null && pet.UserPetOtherBreeds.Any(),
             FirstBreed = pet.UserPetOtherBreeds?.FirstOrDefault()?.FirstBreed,
             SecondBreed = pet.UserPetOtherBreeds?.FirstOrDefault()?.SecondBreed,
-            PetColorId = pet.UserPetColors?.FirstOrDefault()?.PetColorId,
-            MixColors = pet.UserPetColors?.SelectMany(c => c.UserPetMixColors)
+
+            // color (from the master PetColor via UserPetColor)
+            PetColorId = upc?.PetColorId,
+            PetColorName = upc?.PetColor?.Name,
+
+            // mix colors (from UserPetMixColors under UserPetColor)
+            // NOTE: column is Name, not Color
+            MixColors = pet.UserPetColors?
+                .SelectMany(c => c.UserPetMixColors ?? Enumerable.Empty<UserPetMixColor>())
                 .Select(mc => new MixColorDetailDto { Color = mc.Color, Percentage = mc.Percentage })
                 .ToList() ?? new List<MixColorDetailDto>()
         };
+
+
 
         var result = new PetProfileResult
         {

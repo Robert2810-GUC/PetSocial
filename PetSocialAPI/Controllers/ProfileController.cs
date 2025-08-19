@@ -12,14 +12,9 @@ namespace PetSocialAPI.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ProfileController : ControllerBase
+public class ProfileController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public ProfileController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
+    private readonly IMediator _mediator = mediator;
 
     [HttpGet("user")]
     public async Task<IActionResult> GetUserProfile()

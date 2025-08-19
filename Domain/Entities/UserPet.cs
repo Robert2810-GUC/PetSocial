@@ -19,6 +19,8 @@ public class UserPet
     public long? PetFoodId { get; set; }
     public string? CustomFood { get; set; }
 
+    public bool? IsGoldPaw { get; set; } = false;
+
 
     public User? User { get; set; }
     public PetType? PetType { get; set; }

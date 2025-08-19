@@ -9,17 +9,9 @@ namespace PetSocialAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class PetsController : ControllerBase
+public class PetsController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public PetsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
-
-
+    private readonly IMediator _mediator = mediator;
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromForm] RegisterPetCommand command)

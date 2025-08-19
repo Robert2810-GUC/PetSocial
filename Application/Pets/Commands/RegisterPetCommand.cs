@@ -29,6 +29,7 @@ public class RegisterPetCommand : IRequest<ApiResponse<long>> // returns PetId
     public string? Character { get; set; }
     public long? PetFoodId { get; set; }
     public string? CustomFood { get; set; }
+    public bool? IsGoldPaw { get; set; } = false;
 }
 
 public class PetColorDto
