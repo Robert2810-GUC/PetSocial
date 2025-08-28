@@ -10,6 +10,12 @@ using Domain.Entities;
 using Application.Common.Interfaces;
 
 namespace PetSocialAPI.Controllers;
+public sealed class CreateStoryForm
+{
+    public long PetId { get; set; }
+    public IFormFile Media { get; set; } = default!;
+    public string MediaType { get; set; } = default!;
+}
 
 [ApiController]
 [Route("api/[controller]")]
@@ -25,37 +31,67 @@ public class StoriesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromForm] long petId, [FromForm] IFormFile media, [FromForm] string mediaType)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Create([FromForm] CreateStoryForm form)
     {
-        if (media == null)
-            return BadRequest("Media file is required.");
-        if (string.IsNullOrEmpty(mediaType))
-            return BadRequest("Media type is required.");
+        if (form.Media is null) return BadRequest("Media file is required.");
+        if (string.IsNullOrWhiteSpace(form.MediaType)) return BadRequest("Media type is required.");
 
-        var upload = await _imageService.UploadImageAsync(media);
+        var upload = await _imageService.UploadImageAsync(form.Media);
+
         var story = new PetStory
         {
-            PetId = petId,
+            PetId = form.PetId,
             MediaUrl = upload.Url,
-            MediaType = mediaType
+            MediaType = form.MediaType
         };
+
         _db.PetStories.Add(story);
         await _db.SaveChangesAsync();
+
         return Ok(new { story.Id, story.MediaUrl });
     }
-
     [HttpGet("{petId}")]
     public async Task<IActionResult> GetStories(long petId)
     {
-        var now = DateTime.UtcNow;
-        var stories = await _db.PetStories
-            .Where(s => s.PetId == petId && s.ExpiresAt > now)
-            .Include(s => s.Views)
-            .Include(s => s.Likes)
-            .Include(s => s.Comments)
-            .ToListAsync();
-        return Ok(stories);
+        try
+        {
+            var now = DateTime.UtcNow;
+            var stories = await _db.PetStories
+                .Where(s => s.ExpiresAt > now)
+                .Include(s => s.Views)
+                .Include(s => s.Likes)
+                .Include(s => s.Comments)
+                .ToListAsync();
+
+            return Ok(stories);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message, stack = ex.StackTrace });
+        }
     }
+    [HttpGet("MyStories/{petId}")]
+    public async Task<IActionResult> MyStories(long petId)
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            var stories = await _db.PetStories
+                .Where(s => s.PetId == petId && s.ExpiresAt > now)
+                .Include(s => s.Views)
+                .Include(s => s.Likes)
+                .Include(s => s.Comments)
+                .ToListAsync();
+
+            return Ok(stories);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message, stack = ex.StackTrace });
+        }
+    }
+
 
     [HttpPost("{id}/view")]
     public async Task<IActionResult> ViewStory(long id, [FromForm] long viewerPetId)
