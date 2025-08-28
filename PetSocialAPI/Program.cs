@@ -7,6 +7,7 @@ using PetSocialAPI.Middlewares;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text.Json.Serialization;
 
 //serilog 
 
@@ -58,8 +59,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddSwaggerGen();
 bool enableRequestLogging = builder.Configuration.GetValue<bool>("EnableRequestLogging");

@@ -10,6 +10,6 @@ public class TokenResult
 {
     public string Token { get; set; }
     public bool IsPetRegistered { get; set; }
-    public bool IsProfileUpdated { get; set; }
-    public string UserName { get; set; }
+    public bool IsProfileUpdate { get; set; }
+    public string? UserName { get; set; }
 }

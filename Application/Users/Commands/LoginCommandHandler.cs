@@ -5,8 +5,8 @@ using Application.Common.Models;
 using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Persistence;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,6 +35,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
             return ApiResponse<TokenResult>.Fail("Password is required.", 400);
 
         IdentityUser identityUser = null;
+        User userProfile = null;
 
         if (!string.IsNullOrWhiteSpace(request.Email))
         {
@@ -43,7 +44,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         else if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
         {
             // Find custom User entity by phone, then get IdentityId
-            var userProfile = _dbContext.Users.FirstOrDefault(u => u.PhoneNumber == request.PhoneNumber && u.CountryCode == request.CountryCode);
+            userProfile = await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.PhoneNumber == $"{request.CountryCode}{request.PhoneNumber}");
             if (userProfile != null)
             {
                 identityUser = await _userManager.FindByIdAsync(userProfile.IdentityId);
@@ -58,28 +60,28 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         if (!isPasswordValid)
             return ApiResponse<TokenResult>.Fail("Invalid credentials.", 401);
 
-        // Additional info
-        var user = _dbContext.Users.FirstOrDefault(u => u.IdentityId == identityUser.Id);
-        bool isPetRegistered = false;
-        bool isProfileUpdated = false;
-        string userName = user != null ? user?.Name != null ? user.Name.Trim() : "User" : string.Empty;
-
-        if (user != null)
+        if (userProfile == null)
         {
-            isPetRegistered = _dbContext.UserPets.Any(p => p.UserId == user.Id);
-            isProfileUpdated = isPetRegistered && _dbContext.PetOwnerProfiles.Any(p => p.UserId == user.Id);
+            userProfile = await _dbContext.Users.FirstOrDefaultAsync(u => u.IdentityId == identityUser.Id);
         }
 
+        var isProfileUpdate = userProfile != null;
+        var isPetRegistered = false;
+        string userName = identityUser.UserName;
 
-        var roles = await _userManager.GetRolesAsync(identityUser);
-        var role = roles.FirstOrDefault() ?? string.Empty;
+        if (isProfileUpdate)
+        {
+            userName = userProfile.Name;
+            isPetRegistered = await _dbContext.UserPets.AnyAsync(p => p.UserId == userProfile.Id);
+        }
+
         // Generate JWT
-        var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, role, identityUser.UserName);
+        var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, identityUser.UserName);
         var tokenResult = new TokenResult
         {
             Token = token,
             IsPetRegistered = isPetRegistered,
-            IsProfileUpdated = isProfileUpdated,
+            IsProfileUpdate = isProfileUpdate,
             UserName = userName
         };
 
