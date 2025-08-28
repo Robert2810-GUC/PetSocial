@@ -24,6 +24,10 @@ public class ApplicationDbContext : IdentityDbContext
     public DbSet<PetStoryView> PetStoryViews { get; set; }
     public DbSet<PetStoryLike> PetStoryLikes { get; set; }
     public DbSet<PetStoryComment> PetStoryComments { get; set; }
+    public DbSet<UserType> UserTypes { get; set; }
+    public DbSet<ContentCreatorProfile> ContentCreatorProfiles { get; set; }
+    public DbSet<PetOwnerProfile> PetOwnerProfiles { get; set; }
+    public DbSet<PetBusinessProfile> PetBusinessProfiles { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
 
