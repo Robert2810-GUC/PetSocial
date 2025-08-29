@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="CloudinaryDotNet" Version="1.27.6" />
+    <PackageReference Include="Twilio" Version="5.93.1" />
   </ItemGroup>
 
   <ItemGroup>
