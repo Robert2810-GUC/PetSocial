@@ -15,6 +15,7 @@ public sealed class CreateStoryForm
     public long PetId { get; set; }
     public IFormFile Media { get; set; } = default!;
     public string MediaType { get; set; } = default!;
+    public string? Caption { get; set; }
 }
 
 [ApiController]
@@ -43,13 +44,14 @@ public class StoriesController : ControllerBase
         {
             PetId = form.PetId,
             MediaUrl = upload.Url,
-            MediaType = form.MediaType
+            MediaType = form.MediaType,
+            Caption = form.Caption
         };
 
         _db.PetStories.Add(story);
         await _db.SaveChangesAsync();
 
-        return Ok(new { story.Id, story.MediaUrl });
+        return Ok(new { story.Id, story.MediaUrl, story.Caption });
     }
     [HttpGet("{petId}")]
     public async Task<IActionResult> GetStories(long petId)
@@ -57,14 +59,39 @@ public class StoriesController : ControllerBase
         try
         {
             var now = DateTime.UtcNow;
+
             var stories = await _db.PetStories
-                .Where(s => s.ExpiresAt > now)
+                .Where(s => s.PetId != petId && s.ExpiresAt > now)
                 .Include(s => s.Views)
-                .Include(s => s.Likes)
-                .Include(s => s.Comments)
                 .ToListAsync();
 
-            return Ok(stories);
+            var petIds = stories.Select(s => s.PetId).Distinct().ToList();
+            var pets = await _db.UserPets
+                .Where(p => petIds.Contains(p.Id))
+                .Select(p => new { p.Id, Username = p.PetName })
+                .ToListAsync();
+
+            var result = pets.Select(p =>
+            {
+                var petStories = stories.Where(s => s.PetId == p.Id).Select(s => new
+                {
+                    storyId = s.Id,
+                    mediaUrl = s.MediaUrl,
+                    mediaType = s.MediaType,
+                    caption = s.Caption,
+                    isSeen = s.Views.Any(v => v.ViewerPetId == petId)
+                }).ToList();
+
+                return new
+                {
+                    petId = p.Id,
+                    username = p.Username,
+                    isStorySeen = petStories.All(ps => ps.isSeen),
+                    stories = petStories
+                };
+            }).ToList();
+
+            return Ok(result);
         }
         catch (Exception ex)
         {

@@ -9,8 +9,8 @@ public class ApplicationDbContext : IdentityDbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options): base(options) { }
 
 
-    public DbSet<User> Users { get; set; }
-    public DbSet<UserLogin> UserLogins { get; set; }
+    public new DbSet<User> Users { get; set; }
+    public new DbSet<UserLogin> UserLogins { get; set; }
     public DbSet<UserPet> UserPets { get; set; }
     public DbSet<PetType> PetTypes { get; set; }
     public DbSet<PetBreed> PetBreeds { get; set; }
