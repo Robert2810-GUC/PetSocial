@@ -28,6 +28,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
 
     public async Task<ApiResponse<TokenResult>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
+        if(request is null) return ApiResponse<TokenResult>.Fail("Wrong Call..", 400);
         if (string.IsNullOrWhiteSpace(request.Email) && string.IsNullOrWhiteSpace(request.PhoneNumber))
             return ApiResponse<TokenResult>.Fail("Email or Phone is required.", 400);
 
@@ -45,7 +46,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         {
             // Find custom User entity by phone, then get IdentityId
             userProfile = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.PhoneNumber == $"{request.CountryCode}{request.PhoneNumber}");
+                .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber! && u.CountryCode == request.CountryCode);
             if (userProfile != null)
             {
                 identityUser = await _userManager.FindByIdAsync(userProfile.IdentityId);
@@ -81,7 +82,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         {
             Token = token,
             IsPetRegistered = isPetRegistered,
-            IsProfileUpdate = isProfileUpdate,
+            IsProfileUpdated = isProfileUpdate,
             UserName = userName
         };
 
