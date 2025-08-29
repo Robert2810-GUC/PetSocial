@@ -12,7 +12,6 @@ public static class DependencyInjection
     {
         services.AddSingleton<IImageService, ImageService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
-        services.AddScoped<ISmsSender, TwilioSmsSender>();
 
         return services;
     }
