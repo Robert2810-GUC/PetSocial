@@ -173,21 +173,73 @@ public class StoriesController : ControllerBase
     [HttpGet("{id}/views")]
     public async Task<IActionResult> GetViews(long id)
     {
-        var views = await _db.PetStoryViews.Where(v => v.StoryId == id).ToListAsync();
+        var views = await _db.PetStoryViews
+            .Where(v => v.StoryId == id)
+            .Join(
+                _db.UserPets,
+                v => v.ViewerPetId,
+                p => p.Id,
+                (v, p) => new
+                {
+                    v.Id,
+                    v.StoryId,
+                    v.ViewerPetId,
+                    v.ViewedAt,
+                    PetName = p.PetName,
+                    ProfilePic = p.ImagePath,
+                    ProfileLink = $"/api/pets/{p.Id}"
+                })
+            .ToListAsync();
+
         return Ok(views);
     }
 
     [HttpGet("{id}/likes")]
     public async Task<IActionResult> GetLikes(long id)
     {
-        var likes = await _db.PetStoryLikes.Where(l => l.StoryId == id).ToListAsync();
+        var likes = await _db.PetStoryLikes
+            .Where(l => l.StoryId == id)
+            .Join(
+                _db.UserPets,
+                l => l.LikerPetId,
+                p => p.Id,
+                (l, p) => new
+                {
+                    l.Id,
+                    l.StoryId,
+                    l.LikerPetId,
+                    l.LikedAt,
+                    PetName = p.PetName,
+                    ProfilePic = p.ImagePath,
+                    ProfileLink = $"/api/pets/{p.Id}"
+                })
+            .ToListAsync();
+
         return Ok(likes);
     }
 
     [HttpGet("{id}/comments")]
     public async Task<IActionResult> GetComments(long id)
     {
-        var comments = await _db.PetStoryComments.Where(c => c.StoryId == id).ToListAsync();
+        var comments = await _db.PetStoryComments
+            .Where(c => c.StoryId == id)
+            .Join(
+                _db.UserPets,
+                c => c.CommenterPetId,
+                p => p.Id,
+                (c, p) => new
+                {
+                    c.Id,
+                    c.StoryId,
+                    c.CommenterPetId,
+                    c.Text,
+                    c.CreatedAt,
+                    PetName = p.PetName,
+                    ProfilePic = p.ImagePath,
+                    ProfileLink = $"/api/pets/{p.Id}"
+                })
+            .ToListAsync();
+
         return Ok(comments);
     }
 }
