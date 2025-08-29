@@ -42,10 +42,12 @@ public class RequestOtpCommandHandler : IRequestHandler<RequestOtpCommand, ApiRe
         _db.UserOtps.Add(entity);
         await _db.SaveChangesAsync(cancellationToken);
 
-        var to = $"{request.CountryCode}{request.PhoneNumber}";
-        await _smsSender.SendSmsAsync(to, $"Your OTP is {otp}");
+        //var to = $"{request.CountryCode}{request.PhoneNumber}";
+        //await _smsSender.SendSmsAsync(to, $"Your OTP is {otp}");
 
-        return ApiResponse<string>.Success(null, "OTP sent! Validate OTP in 5 minutes before it expires.");
+        //return ApiResponse<string>.Success(null, "OTP sent! Validate OTP in 5 minutes before it expires.");
+        return ApiResponse<string>.Success(otp, "OTP sent! Validate OTP in 5 minutes before it expires."); 
+
     }
 
 }
