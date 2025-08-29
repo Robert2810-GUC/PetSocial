@@ -8,13 +8,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Application.Common.Interfaces;
 
 namespace Application.Users.Commands;
 
 public class RequestOtpCommandHandler : IRequestHandler<RequestOtpCommand, ApiResponse<string>>
 {
     private readonly ApplicationDbContext _db;
-    public RequestOtpCommandHandler(ApplicationDbContext db) => _db = db;
+    private readonly ISmsSender _smsSender;
+    public RequestOtpCommandHandler(ApplicationDbContext db, ISmsSender smsSender)
+    {
+        _db = db;
+        _smsSender = smsSender;
+    }
 
     public async Task<ApiResponse<string>> Handle(RequestOtpCommand request, CancellationToken cancellationToken)
     {
@@ -34,9 +40,12 @@ public class RequestOtpCommandHandler : IRequestHandler<RequestOtpCommand, ApiRe
             IsUsed = false
         };
         _db.UserOtps.Add(entity);
-        await _db.SaveChangesAsync();
-        // TODO: Integrate SMS provider here
-        return ApiResponse<string>.Success(otp, "OTP sent! Validate OTP in 5 minutes before it expires."); // Don't include OTP in prod
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var to = $"{request.CountryCode}{request.PhoneNumber}";
+        await _smsSender.SendSmsAsync(to, $"Your OTP is {otp}");
+
+        return ApiResponse<string>.Success(null, "OTP sent! Validate OTP in 5 minutes before it expires.");
     }
 
 }
