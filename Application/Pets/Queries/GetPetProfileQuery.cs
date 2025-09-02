@@ -33,6 +33,7 @@ public class PetDetailDto
     public string? PetTypeName { get; set; }
     public string? CustomPetTypeName { get; set; }
     public string PetName { get; set; }
+    public string? PetUserName { get; set; }
     public string PetFoundAt { get; set; }
     public string ImagePath { get; set; }
     public string? Gender { get; set; }
@@ -126,6 +127,7 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
             WeightUnit = pet.WeightUnit,
             Character = pet.Character,
             IsGoldPaw = pet.IsGoldPaw,
+            PetUserName = pet.PetUserName,
 
             // other-breed flags
             IsMixedBreed = pet.UserPetOtherBreeds != null && pet.UserPetOtherBreeds.Any(),

@@ -21,6 +21,8 @@ public class UserPet
 
     public bool? IsGoldPaw { get; set; } = false;
 
+    public string? PetUserName { get; set; }  
+
 
     public User? User { get; set; }
     public PetType? PetType { get; set; }

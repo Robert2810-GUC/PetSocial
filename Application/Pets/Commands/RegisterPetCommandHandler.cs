@@ -7,6 +7,7 @@ using Persistence;
 using Domain.Entities;
 using Application.Common;
 using System.Text.Json;
+using static System.Net.WebRequestMethods;
 
 namespace Application.Pets.Commands;
 
@@ -23,13 +24,13 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
 
     public async Task<ApiResponse<long>> Handle(RegisterPetCommand request, CancellationToken cancellationToken)
     {
-        string uploadedPublicId = null;
+        string? uploadedPublicId = null;
         using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
             // 1. Upload pet image
-            string imageUrl = null;
+            string? imageUrl = null;
 
 
             if (request.Image != null)
@@ -47,29 +48,43 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
             if (user == null)
                 return ApiResponse<long>.Fail("User not found.", 404);
 
-            // 3. Insert UserPet
-            var pet = new UserPet
+            if (!string.IsNullOrEmpty(request.PetUserName))
             {
-                UserId = user.Id,
-                PetTypeId = request.PetTypeId,
-                CustomPetTypeName = request.PetTypeId == ReservedIds.PetTypeOther ? request.CustomPetTypeName.Trim() : null,
-                PetName = request.PetName.Trim(),
-                PetFoundAt = request.PetFoundAt.Trim(),
-                ImagePath = imageUrl ?? "/images/default-pet.jpg",
-                Gender = request.Gender,
-                DOB = request.DOB,
-                PetBreedId = request.PetBreedId,
-                CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed.Trim() : null,
-                Food = request.Food,
-                Weight = request.Weight,
-                WeightUnit = request.WeightUnit,
-                Character = request.Character.Trim(),
-                PetFoodId = request.PetFoodId,
-                CustomFood = (request.PetFoodId == ReservedIds.FoodOther) ? request.CustomFood.Trim() : null,
-                IsGoldPaw = request.PetFoundAt.Contains("shelter", StringComparison.OrdinalIgnoreCase)
+                var userpetExists = await _dbContext.UserPets
+                    .AsNoTracking()
+                    .AnyAsync(up => up.PetUserName.ToLower() == request.PetUserName.Trim().ToLower(), cancellationToken);
+                return ApiResponse<long>.Fail("User Name already taken.", 404);
+
+            }
+            else
+            {
+
+                request.PetUserName = getUniquePetUserName(request.PetName);
+            }
+                // 3. Insert UserPet
+                var pet = new UserPet
+                {
+                    UserId = user.Id,
+                    PetTypeId = request.PetTypeId,
+                    CustomPetTypeName = request.PetTypeId == ReservedIds.PetTypeOther ? request.CustomPetTypeName?.Trim() : null,
+                    PetName = request.PetName.Trim(),
+                    PetFoundAt = request.PetFoundAt.Trim(),
+                    ImagePath = imageUrl ?? "/images/default-pet.jpg",
+                    Gender = request.Gender,
+                    DOB = request.DOB,
+                    PetBreedId = request.PetBreedId,
+                    CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed?.Trim() : null,
+                    Food = request.Food,
+                    Weight = request.Weight,
+                    WeightUnit = request.WeightUnit,
+                    Character = request.Character?.Trim(),
+                    PetFoodId = request.PetFoodId,
+                    CustomFood = (request.PetFoodId == ReservedIds.FoodOther) ? request.CustomFood?.Trim() : null,
+                    IsGoldPaw = request.PetFoundAt.Contains("shelter", StringComparison.OrdinalIgnoreCase),
+                    PetUserName = string.IsNullOrWhiteSpace(request.PetUserName) ? null : request.PetUserName.Trim().ToLower().Replace(" ", "")
 
 
-            };
+                };
             _dbContext.UserPets.Add(pet);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -86,7 +101,7 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                 anyDBQuery = true;
             }
 
-            UserPetColor petColor = null;
+            UserPetColor? petColor = null;
             // 5. Insert color(s)
             if (request.PetColorId.HasValue)
             {
@@ -145,7 +160,7 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                 {
                     await _imageService.DeleteImageAsync(uploadedPublicId);
                 }
-                catch (Exception delEx)
+                catch (Exception)
                 {
                     // Optionally log the cleanup failure, but don’t throw!
                 }
@@ -154,4 +169,15 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
         }
     }
 
+    private string? getUniquePetUserName(string petName)
+    {
+        var baseUserName = petName.Trim().ToLower().Replace(" ", "");
+        var uniqueUserName = baseUserName;
+        uniqueUserName = $"{baseUserName}1234";
+        while (_dbContext.UserPets.Any(up => up.PetUserName.ToLower() == uniqueUserName))
+        {
+            uniqueUserName = $"{baseUserName}{new Random().Next(0000, 9999)}";
+        }
+        return uniqueUserName;
+    }
 }

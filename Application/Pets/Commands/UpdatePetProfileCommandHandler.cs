@@ -24,7 +24,7 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
 
     public async Task<ApiResponse<long>> Handle(UpdatePetProfileCommand request, CancellationToken cancellationToken)
     {
-        string uploadedPublicId = null;
+        string? uploadedPublicId = null;
         using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -41,6 +41,21 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
                 .FirstOrDefaultAsync(p => p.Id == request.PetId && p.UserId == user.Id, cancellationToken);
             if (pet == null)
                 return ApiResponse<long>.Fail("Pet not found.", 404);
+
+            if (!string.IsNullOrEmpty(request.PetUserName))
+            {
+                var userpetExists = await _dbContext.UserPets
+                    .AsNoTracking()
+                    .AnyAsync(up => up.PetUserName.ToLower() == request.PetUserName.Trim().ToLower(), cancellationToken);
+                return ApiResponse<long>.Fail("User Name already taken.", 404);
+
+            }
+            else
+            {
+
+                request.PetUserName = getUniquePetUserName(request.PetName);
+            }
+
 
             string imageUrl = pet.ImagePath;
             if (request.Image != null)
@@ -65,6 +80,8 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
             pet.Character = request.Character?.Trim();
             pet.PetFoodId = request.PetFoodId;
             pet.CustomFood = request.PetFoodId == ReservedIds.FoodOther ? request.CustomFood?.Trim() : null;
+            pet.PetUserName = string.IsNullOrWhiteSpace(request.PetUserName) ? null : request.PetUserName.Trim().ToLower().Replace(" ", "");
+
             pet.UpdatedAt = DateTime.Now;
 
             if (pet.UserPetOtherBreeds != null && pet.UserPetOtherBreeds.Any())
@@ -92,7 +109,7 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
                 });
             }
 
-            UserPetColor petColor = null;
+            UserPetColor? petColor = null;
             if (request.PetColorId.HasValue)
             {
                 petColor = new UserPetColor
@@ -135,5 +152,16 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
             }
             return ApiResponse<long>.Fail($"Update failed: {ex.Message}", 500);
         }
+    }
+    private string? getUniquePetUserName(string petName)
+    {
+        var baseUserName = petName.Trim().ToLower().Replace(" ", "");
+        var uniqueUserName = baseUserName;
+        uniqueUserName = $"{baseUserName}1234";
+        while (_dbContext.UserPets.Any(up => up.PetUserName.ToLower() == uniqueUserName))
+        {
+            uniqueUserName = $"{baseUserName}{new Random().Next(0000, 9999)}";
+        }
+        return uniqueUserName;
     }
 }

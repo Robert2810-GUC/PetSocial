@@ -28,4 +28,5 @@ public class UpdatePetProfileCommand : IRequest<ApiResponse<long>>
     public string? Character { get; set; }
     public long? PetFoodId { get; set; }
     public string? CustomFood { get; set; }
+    public string? PetUserName { get; set; }
 }
