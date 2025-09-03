@@ -15,11 +15,9 @@ namespace Application.Users.Commands;
 public class RequestOtpCommandHandler : IRequestHandler<RequestOtpCommand, ApiResponse<string>>
 {
     private readonly ApplicationDbContext _db;
-    private readonly ISmsSender _smsSender;
-    public RequestOtpCommandHandler(ApplicationDbContext db, ISmsSender smsSender)
+    public RequestOtpCommandHandler(ApplicationDbContext db)
     {
         _db = db;
-        _smsSender = smsSender;
     }
 
     public async Task<ApiResponse<string>> Handle(RequestOtpCommand request, CancellationToken cancellationToken)
