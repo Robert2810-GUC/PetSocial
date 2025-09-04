@@ -15,7 +15,6 @@ using Microsoft.OpenApi.Models;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Error)
     .WriteTo.Console()
     .WriteTo.File(@"C:\Logs\PetSocialLog\requests.txt", rollingInterval: RollingInterval.Day)
