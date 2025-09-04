@@ -1,5 +1,8 @@
 ﻿using Serilog;
 using System.Diagnostics;
+using System.Text;
+using System.Linq;
+using System.IO;
 namespace PetSocialAPI.Middlewares;
 
 public class RequestTimingMiddleware
@@ -16,42 +19,74 @@ public class RequestTimingMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         var sw = Stopwatch.StartNew();
+
+        // Capture request details
+        var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty;
+        var headers = string.Join("; ", context.Request.Headers.Select(h => $"{h.Key}: {h.Value}"));
+
+        string requestBody = string.Empty;
+        context.Request.EnableBuffering();
+        if (context.Request.ContentLength > 0)
+        {
+            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
+            requestBody = await reader.ReadToEndAsync();
+            context.Request.Body.Position = 0;
+        }
+
+        var originalBodyStream = context.Response.Body;
+        await using var responseBody = new MemoryStream();
+        context.Response.Body = responseBody;
+
         try
         {
             await _next(context);
-            sw.Stop();
-
-            _logger.LogInformation(
-                "Request {Method} {Path} responded {StatusCode} in {ElapsedMilliseconds} ms",
-                context.Request.Method,
-                context.Request.Path,
-                context.Response.StatusCode,
-                sw.ElapsedMilliseconds
-            );
-
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            // Log as error
-            _logger.LogError(
-                ex,
-                "Exception for {Method} {Path}: {Message} (responded {StatusCode} in {ElapsedMilliseconds} ms)",
-                context.Request.Method,
-                context.Request.Path,
-                ex.Message,
-                context.Response.StatusCode,
-                sw.ElapsedMilliseconds
-            );
-
-            // Optional: rethrow or set status code as 500
             context.Response.StatusCode = 500;
-            // Write error response if desired
             await context.Response.WriteAsync("An unhandled exception occurred.");
 
-            // Do not rethrow, as we've handled the response
-            // If you want to let ASP.NET Core's error page handle it, rethrow:
-            // throw;
+            context.Response.Body.Seek(0, SeekOrigin.Begin);
+            var errorResponseText = await new StreamReader(context.Response.Body).ReadToEndAsync();
+            context.Response.Body.Seek(0, SeekOrigin.Begin);
+
+            sw.Stop();
+            _logger.LogError(
+                ex,
+                "Exception for {Method} {Path} QueryString: {QueryString} Headers: {Headers} Body: {RequestBody} responded {StatusCode} in {ElapsedMilliseconds} ms with Body: {ResponseBody}",
+                context.Request.Method,
+                context.Request.Path,
+                queryString,
+                headers,
+                requestBody,
+                context.Response.StatusCode,
+                sw.ElapsedMilliseconds,
+                errorResponseText
+            );
+
+            await responseBody.CopyToAsync(originalBodyStream);
+            context.Response.Body = originalBodyStream;
+            return;
         }
+
+        context.Response.Body.Seek(0, SeekOrigin.Begin);
+        var responseText = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        context.Response.Body.Seek(0, SeekOrigin.Begin);
+
+        sw.Stop();
+        _logger.LogInformation(
+            "Request {Method} {Path} QueryString: {QueryString} Headers: {Headers} Body: {RequestBody} responded {StatusCode} in {ElapsedMilliseconds} ms with Body: {ResponseBody}",
+            context.Request.Method,
+            context.Request.Path,
+            queryString,
+            headers,
+            requestBody,
+            context.Response.StatusCode,
+            sw.ElapsedMilliseconds,
+            responseText
+        );
+
+        await responseBody.CopyToAsync(originalBodyStream);
+        context.Response.Body = originalBodyStream;
     }
 }
