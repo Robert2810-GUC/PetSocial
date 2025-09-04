@@ -1,5 +1,4 @@
-﻿using Serilog;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text;
 using System.Linq;
 using System.IO;
@@ -33,6 +32,16 @@ public class RequestTimingMiddleware
             context.Request.Body.Position = 0;
         }
 
+        _logger.LogInformation(
+            "{Timestamp} Request: {Method} {Path} QueryString: {QueryString} Headers: {Headers} Body: {RequestBody}",
+            DateTimeOffset.UtcNow.ToString("o"),
+            context.Request.Method,
+            context.Request.Path,
+            queryString,
+            headers,
+            requestBody
+        );
+
         var originalBodyStream = context.Response.Body;
         await using var responseBody = new MemoryStream();
         context.Response.Body = responseBody;
@@ -53,7 +62,8 @@ public class RequestTimingMiddleware
             sw.Stop();
             _logger.LogError(
                 ex,
-                "Exception for {Method} {Path} QueryString: {QueryString} Headers: {Headers} Body: {RequestBody} responded {StatusCode} in {ElapsedMilliseconds} ms with Body: {ResponseBody}",
+                "{Timestamp} Response: {Method} {Path} QueryString: {QueryString} Headers: {Headers} Body: {RequestBody} StatusCode: {StatusCode} in {ElapsedMilliseconds} ms Body: {ResponseBody}",
+                DateTimeOffset.UtcNow.ToString("o"),
                 context.Request.Method,
                 context.Request.Path,
                 queryString,
@@ -75,12 +85,11 @@ public class RequestTimingMiddleware
 
         sw.Stop();
         _logger.LogInformation(
-            "Request {Method} {Path} QueryString: {QueryString} Headers: {Headers} Body: {RequestBody} responded {StatusCode} in {ElapsedMilliseconds} ms with Body: {ResponseBody}",
+            "{Timestamp} Response: {Method} {Path} QueryString: {QueryString} StatusCode: {StatusCode} in {ElapsedMilliseconds} ms Body: {ResponseBody}",
+            DateTimeOffset.UtcNow.ToString("o"),
             context.Request.Method,
             context.Request.Path,
             queryString,
-            headers,
-            requestBody,
             context.Response.StatusCode,
             sw.ElapsedMilliseconds,
             responseText
