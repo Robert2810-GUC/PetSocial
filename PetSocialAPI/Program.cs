@@ -107,6 +107,12 @@ if (enableRequestLogging)
 
 
 app.UseSwagger();
+app.UseReDoc(options =>
+{
+    options.DocumentTitle = "PetSocial API Documentation";
+    options.SpecUrl("/swagger/v1/swagger.json");
+    options.RoutePrefix = "docs";
+});
 app.UseSwaggerUI();
 app.UseCors("AllowDevClient");
 
