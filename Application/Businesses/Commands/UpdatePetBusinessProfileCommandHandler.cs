@@ -64,7 +64,8 @@ public class UpdatePetBusinessProfileCommandHandler : IRequestHandler<UpdatePetB
             profile.Address = request.Address;
             profile.PhoneNumber = request.PhoneNumber;
             profile.Email = request.Email;
-            profile.EINorSSN = request.EINorSSN;
+            profile.SecurityNumber = request.SecurityNumber;
+            profile.SecurityType = request.SecurityType;
             profile.NumberOfEmployees = request.NumberOfEmployees;
             profile.BusinessType = request.BusinessType;
             profile.GoogleRating = rating;
