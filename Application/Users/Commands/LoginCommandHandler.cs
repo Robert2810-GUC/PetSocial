@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -76,8 +77,11 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
             isPetRegistered = await _dbContext.UserPets.AnyAsync(p => p.UserId == userProfile.Id);
         }
 
+        var roles = await _userManager.GetRolesAsync(identityUser);
+        var role = roles.FirstOrDefault() ?? "User";
+
         // Generate JWT
-        var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email, identityUser.UserName);
+        var token = _jwtTokenService.GenerateToken(identityUser.Id, identityUser.Email ?? string.Empty, role, userName);
         var tokenResult = new TokenResult
         {
             Token = token,

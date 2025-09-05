@@ -111,7 +111,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
 
             var jwt = _jwtTokenService.GenerateToken(
                 identityUser.Id,
-                identityUser.Email,
+                identityUser.Email ?? string.Empty,
                 assignedRole,
                 identityUser.UserName
             );
