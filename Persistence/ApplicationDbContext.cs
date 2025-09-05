@@ -23,6 +23,7 @@ public class ApplicationDbContext : IdentityDbContext
     public DbSet<PetStoryView> PetStoryViews { get; set; }
     public DbSet<PetStoryLike> PetStoryLikes { get; set; }
     public DbSet<PetStoryComment> PetStoryComments { get; set; }
+    public DbSet<PetBusinessProfile> PetBusinessProfiles { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
