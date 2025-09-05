@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Application.Common.Models;
 
 namespace PetSocialAPI.Controllers;
 
@@ -14,7 +15,7 @@ public class DevOpsController(RoleManager<IdentityRole> roleManager, UserManager
     public async Task<IActionResult> SeedRoles([FromHeader(Name = "X-Admin-Secret")] string secret)
     {
         if (secret != "chotulaal@1234")
-            return Unauthorized();
+            return StatusCode(401, ApiResponse<string>.Fail("Unauthorized", 401));
 
         string[] roles = { "Admin", "User" };
         List<string> created = new();
@@ -26,13 +27,13 @@ public class DevOpsController(RoleManager<IdentityRole> roleManager, UserManager
                 if (res.Succeeded) created.Add(role);
             }
         }
-        return Ok(new { created });
+        return StatusCode(200, ApiResponse<object>.Success(new { created }));
     }
     [HttpPost("seed-admin")]
     public async Task<IActionResult> SeedAdmin([FromHeader(Name = "X-Admin-Secret")] string secret)
     {
         if (secret != "chotulaal@1234")
-            return Unauthorized();
+            return StatusCode(401, ApiResponse<string>.Fail("Unauthorized", 401));
 
         var identityUser = new IdentityUser
         {
@@ -42,24 +43,13 @@ public class DevOpsController(RoleManager<IdentityRole> roleManager, UserManager
 
         var result = await _userManager.CreateAsync(identityUser, "inos@1234");
         if (!result.Succeeded)
-            return BadRequest(new
-            {
-                status = false,
-                statusCode = 400,
-                message = "Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)),
-                data = (object)null
-            });
+            return StatusCode(400, ApiResponse<string>.Fail(
+                "Registration failed: " + string.Join(", ", result.Errors.Select(e => e.Description)), 400));
         var roleResult = await _userManager.AddToRoleAsync(identityUser, "Admin");
         if (!roleResult.Succeeded)
-            return BadRequest(new
-            {
-                status = false,
-                statusCode = 400,
-                message = "Failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)),
-                data = (object)null
-            });
+            return StatusCode(400, ApiResponse<string>.Fail(
+                "Failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)), 400));
 
-
-        return Ok("Admin Created");
+        return StatusCode(200, ApiResponse<string>.Success("Admin Created"));
     }
 }

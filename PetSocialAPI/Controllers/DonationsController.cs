@@ -3,6 +3,7 @@ using Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Persistence;
+using Application.Common.Models;
 
 namespace PetSocialAPI.Controllers;
 
@@ -28,7 +29,7 @@ public class DonationsController : ControllerBase
     public async Task<IActionResult> Donate([FromBody] DonationRequest request)
     {
         if (request.Amount <= 0)
-            return BadRequest("Amount must be greater than zero.");
+            return StatusCode(400, ApiResponse<string>.Fail("Amount must be greater than zero.", 400));
 
         var donation = new PetDonation
         {
@@ -38,6 +39,6 @@ public class DonationsController : ControllerBase
 
         _db.PetDonations.Add(donation);
         await _db.SaveChangesAsync();
-        return Ok(donation);
+        return StatusCode(200, ApiResponse<PetDonation>.Success(donation));
     }
 }

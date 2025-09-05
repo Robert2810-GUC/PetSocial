@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Persistence;
 using Domain.Entities;
 using Application.Common.Interfaces;
+using Application.Common.Models;
 
 namespace PetSocialAPI.Controllers;
 public sealed class CreateStoryForm
@@ -35,8 +36,10 @@ public class StoriesController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> Create([FromForm] CreateStoryForm form)
     {
-        if (form.Media is null) return BadRequest("Media file is required.");
-        if (string.IsNullOrWhiteSpace(form.MediaType)) return BadRequest("Media type is required.");
+        if (form.Media is null)
+            return StatusCode(400, ApiResponse<string>.Fail("Media file is required.", 400));
+        if (string.IsNullOrWhiteSpace(form.MediaType))
+            return StatusCode(400, ApiResponse<string>.Fail("Media type is required.", 400));
 
         var upload = await _imageService.UploadImageAsync(form.Media);
 
@@ -51,7 +54,8 @@ public class StoriesController : ControllerBase
         _db.PetStories.Add(story);
         await _db.SaveChangesAsync();
 
-        return Ok(new { story.Id, story.MediaUrl, story.Caption });
+        var result = new { story.Id, story.MediaUrl, story.Caption };
+        return StatusCode(200, ApiResponse<object>.Success(result));
     }
     [HttpGet("{petId}")]
     public async Task<IActionResult> GetStories(long petId)
@@ -91,11 +95,11 @@ public class StoriesController : ControllerBase
                 };
             }).ToList();
 
-            return Ok(result);
+            return StatusCode(200, ApiResponse<object>.Success(result));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = ex.Message, stack = ex.StackTrace });
+            return StatusCode(500, ApiResponse<string>.Fail(ex.Message, 500));
         }
     }
     [HttpGet("MyStories/{petId}")]
@@ -111,11 +115,11 @@ public class StoriesController : ControllerBase
                 .Include(s => s.Comments)
                 .ToListAsync();
 
-            return Ok(stories);
+            return StatusCode(200, ApiResponse<object>.Success(stories));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = ex.Message, stack = ex.StackTrace });
+            return StatusCode(500, ApiResponse<string>.Fail(ex.Message, 500));
         }
     }
 
@@ -129,7 +133,7 @@ public class StoriesController : ControllerBase
             _db.PetStoryViews.Add(new PetStoryView { StoryId = id, ViewerPetId = viewerPetId });
             await _db.SaveChangesAsync();
         }
-        return Ok();
+        return StatusCode(200, ApiResponse<object>.Success(null));
     }
 
     [HttpPost("{id}/like")]
@@ -137,7 +141,7 @@ public class StoriesController : ControllerBase
     {
         var isVerified = await _db.PetDonations.AnyAsync(d => d.PetId == likerPetId);
         if (!isVerified)
-            return BadRequest("Pet is not verified.");
+            return StatusCode(400, ApiResponse<string>.Fail("Pet is not verified.", 400));
 
         var like = await _db.PetStoryLikes.FirstOrDefaultAsync(l => l.StoryId == id && l.LikerPetId == likerPetId);
         if (like == null)
@@ -149,7 +153,7 @@ public class StoriesController : ControllerBase
             _db.PetStoryLikes.Remove(like);
         }
         await _db.SaveChangesAsync();
-        return Ok();
+        return StatusCode(200, ApiResponse<object>.Success(null));
     }
 
     public class CommentRequest
@@ -162,10 +166,10 @@ public class StoriesController : ControllerBase
     public async Task<IActionResult> CommentStory(long id, [FromBody] CommentRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Text))
-            return BadRequest("Comment text is required.");
+            return StatusCode(400, ApiResponse<string>.Fail("Comment text is required.", 400));
         var isVerified = await _db.PetDonations.AnyAsync(d => d.PetId == request.CommenterPetId);
         if (!isVerified)
-            return BadRequest("Pet is not verified.");
+            return StatusCode(400, ApiResponse<string>.Fail("Pet is not verified.", 400));
         var comment = new PetStoryComment
         {
             StoryId = id,
@@ -174,7 +178,7 @@ public class StoriesController : ControllerBase
         };
         _db.PetStoryComments.Add(comment);
         await _db.SaveChangesAsync();
-        return Ok(comment);
+        return StatusCode(200, ApiResponse<object>.Success(comment));
     }
 
     [HttpGet("{id}/views")]
@@ -198,7 +202,7 @@ public class StoriesController : ControllerBase
                 })
             .ToListAsync();
 
-        return Ok(views);
+        return StatusCode(200, ApiResponse<object>.Success(views));
     }
 
     [HttpGet("{id}/likes")]
@@ -222,7 +226,7 @@ public class StoriesController : ControllerBase
                 })
             .ToListAsync();
 
-        return Ok(likes);
+        return StatusCode(200, ApiResponse<object>.Success(likes));
     }
 
     [HttpGet("{id}/comments")]
@@ -247,6 +251,6 @@ public class StoriesController : ControllerBase
                 })
             .ToListAsync();
 
-        return Ok(comments);
+        return StatusCode(200, ApiResponse<object>.Success(comments));
     }
 }
