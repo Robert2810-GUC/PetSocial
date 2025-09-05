@@ -24,6 +24,7 @@ public class PetSummaryDto
     public string PetName { get; set; }
 
     public bool IsGoldPaw {  get; set; }
+    public bool IsVerified { get; set; }
 }
 
 public class PetDetailDto
@@ -55,6 +56,7 @@ public class PetDetailDto
     public string? WeightUnit { get; set; }
     public string? Character { get; set; }
     public bool? IsGoldPaw { get; set; } = false;
+    public bool IsVerified { get; set; }
 }
 
 public class MixColorDetailDto
@@ -80,7 +82,13 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
 
         var pets = await _dbContext.UserPets
             .Where(p => p.UserId == user.Id)
-            .Select(p => new PetSummaryDto { Id = p.Id, PetName = p.PetName, IsGoldPaw = (p.IsGoldPaw.HasValue) ? p.IsGoldPaw.Value : false })
+            .Select(p => new PetSummaryDto
+            {
+                Id = p.Id,
+                PetName = p.PetName,
+                IsGoldPaw = p.IsGoldPaw.HasValue ? p.IsGoldPaw.Value : false,
+                IsVerified = _dbContext.PetDonations.Any(d => d.PetId == p.Id)
+            })
             .ToListAsync(cancellationToken);
 
         if (!pets.Any())
@@ -145,6 +153,9 @@ public class GetPetProfileQueryHandler : IRequestHandler<GetPetProfileQuery, Api
                 .Select(mc => new MixColorDetailDto { Color = mc.Color, Percentage = mc.Percentage })
                 .ToList() ?? new List<MixColorDetailDto>()
         };
+
+        detail.IsVerified = await _dbContext.PetDonations
+            .AnyAsync(d => d.PetId == pet.Id, cancellationToken);
 
 
 
