@@ -24,6 +24,7 @@ public class ApplicationDbContext : IdentityDbContext
     public DbSet<PetStoryView> PetStoryViews { get; set; }
     public DbSet<PetStoryLike> PetStoryLikes { get; set; }
     public DbSet<PetStoryComment> PetStoryComments { get; set; }
+    public DbSet<PetDonation> PetDonations { get; set; }
     public DbSet<UserType> UserTypes { get; set; }
     public DbSet<ContentCreatorProfile> ContentCreatorProfiles { get; set; }
     public DbSet<PetOwnerProfile> PetOwnerProfiles { get; set; }

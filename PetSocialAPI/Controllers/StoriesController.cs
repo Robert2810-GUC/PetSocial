@@ -135,6 +135,10 @@ public class StoriesController : ControllerBase
     [HttpPost("{id}/like")]
     public async Task<IActionResult> LikeStory(long id, [FromForm] long likerPetId)
     {
+        var isVerified = await _db.PetDonations.AnyAsync(d => d.PetId == likerPetId);
+        if (!isVerified)
+            return BadRequest("Pet is not verified.");
+
         var like = await _db.PetStoryLikes.FirstOrDefaultAsync(l => l.StoryId == id && l.LikerPetId == likerPetId);
         if (like == null)
         {
@@ -159,6 +163,9 @@ public class StoriesController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Text))
             return BadRequest("Comment text is required.");
+        var isVerified = await _db.PetDonations.AnyAsync(d => d.PetId == request.CommenterPetId);
+        if (!isVerified)
+            return BadRequest("Pet is not verified.");
         var comment = new PetStoryComment
         {
             StoryId = id,
