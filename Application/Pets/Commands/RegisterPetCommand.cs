@@ -1,6 +1,9 @@
 ﻿using Application.Common.Models;
+using Application.Settings;
+using Infrastructure.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 
 namespace Application.Pets.Commands;
@@ -27,6 +30,8 @@ public class RegisterPetCommand : IRequest<ApiResponse<long>> // returns PetId
     public decimal? Weight { get; set; }
     public string? WeightUnit { get; set; }
     public string? Character { get; set; }
+
+    [ModelBinder(BinderType = typeof(NullableLongBinder))]
     public long? PetFoodId { get; set; }
     public string? CustomFood { get; set; }
     public bool? IsGoldPaw { get; set; } = false;

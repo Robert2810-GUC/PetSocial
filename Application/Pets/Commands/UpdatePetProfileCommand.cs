@@ -1,6 +1,8 @@
 using Application.Common.Models;
+using Application.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 namespace Application.Pets.Commands;
 
 public class UpdatePetProfileCommand : IRequest<ApiResponse<long>>
@@ -26,6 +28,8 @@ public class UpdatePetProfileCommand : IRequest<ApiResponse<long>>
     public decimal? Weight { get; set; }
     public string? WeightUnit { get; set; }
     public string? Character { get; set; }
+
+    [ModelBinder(BinderType = typeof(NullableLongBinder))]
     public long? PetFoodId { get; set; }
     public string? CustomFood { get; set; }
     public string? PetUserName { get; set; }

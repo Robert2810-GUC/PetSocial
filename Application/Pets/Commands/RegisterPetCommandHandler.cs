@@ -50,19 +50,21 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
 
             if (!string.IsNullOrEmpty(request.PetUserName))
             {
-                var userpetExists = await _dbContext.UserPets
+                var exists = await _dbContext.UserPets
                     .AsNoTracking()
-                    .AnyAsync(up => up.PetUserName.ToLower() == request.PetUserName.Trim().ToLower(), cancellationToken);
-                return ApiResponse<long>.Fail("User Name already taken.", 404);
+                    .AnyAsync(up => up.PetUserName != null &&
+                                    up.PetUserName.ToLower() == request.PetUserName.Trim().ToLower(), cancellationToken);
 
+                if (exists)
+                    return ApiResponse<long>.Fail("User Name already taken.", 409);
             }
             else
             {
-
                 request.PetUserName = getUniquePetUserName(request.PetName);
             }
-                // 3. Insert UserPet
-                var pet = new UserPet
+
+            // 3. Insert UserPet
+            var pet = new UserPet
                 {
                     UserId = user.Id,
                     PetTypeId = request.PetTypeId,
@@ -174,9 +176,10 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
         var baseUserName = petName.Trim().ToLower().Replace(" ", "");
         var uniqueUserName = baseUserName;
         uniqueUserName = $"{baseUserName}1234";
-        while (_dbContext.UserPets.Any(up => up.PetUserName.ToLower() == uniqueUserName))
+        while (_dbContext.UserPets.Any(up => up.PetUserName != null &&
+                                      up.PetUserName.ToLower() == uniqueUserName))
         {
-            uniqueUserName = $"{baseUserName}{new Random().Next(0000, 9999)}";
+            uniqueUserName = $"{baseUserName}{Random.Shared.Next(0, 9999):0000}";
         }
         return uniqueUserName;
     }
