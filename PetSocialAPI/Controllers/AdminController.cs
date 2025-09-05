@@ -1,5 +1,5 @@
 using Application.Common.Interfaces;
-using Domain.DTOs;
+using Application.Common.DTOs;
 using Domain.Entities;
 using Domain.Enums;
 using Microsoft.AspNetCore.Authorization;

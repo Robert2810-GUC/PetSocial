@@ -1,4 +1,4 @@
-﻿namespace Domain.DTOs;
+﻿namespace Application.Common.DTOs;
 
 public class PetTypeDto
 {
