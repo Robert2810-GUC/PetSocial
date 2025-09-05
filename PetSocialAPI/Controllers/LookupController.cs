@@ -20,7 +20,7 @@ public class LookupController : ControllerBase
             .Select(t => new { t.Id, t.Name, t.ImagePath })
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Success(types));
+        return StatusCode(200, ApiResponse<object>.Success(types));
     }
 
     [HttpGet("breeds")]
@@ -32,7 +32,7 @@ public class LookupController : ControllerBase
             .Select(b => new { b.Id, b.Name })
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Success(breeds));
+        return StatusCode(200, ApiResponse<object>.Success(breeds));
     }
 
     [HttpGet("colors")]
@@ -44,7 +44,7 @@ public class LookupController : ControllerBase
             .Select(c => new { c.Id, c.Name })
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Success(colors));
+        return StatusCode(200, ApiResponse<object>.Success(colors));
     }
 
     [HttpGet("usertypes")]
@@ -54,7 +54,7 @@ public class LookupController : ControllerBase
             .Select(c => new { c.Id, c.Name, c.ImagePath, c.Description })
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Success(userTypes));
+        return StatusCode(200, ApiResponse<object>.Success(userTypes));
     }
 
     [HttpGet("food")]
@@ -65,6 +65,6 @@ public class LookupController : ControllerBase
             .Select(c => new { c.Id, c.Name })
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Success(foods));
+        return StatusCode(200, ApiResponse<object>.Success(foods));
     }
 }

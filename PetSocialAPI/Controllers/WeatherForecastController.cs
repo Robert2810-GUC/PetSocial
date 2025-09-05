@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Application.Common.Models;
 
 namespace PetSocialAPI.Controllers
 {
@@ -19,15 +20,16 @@ namespace PetSocialAPI.Controllers
         }
 
         [HttpGet(Name = "GetWeatherForecast")]
-        public IEnumerable<WeatherForecast> Get()
+        public IActionResult Get()
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            var forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {
                 Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
                 TemperatureC = Random.Shared.Next(-20, 55),
                 Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+            }).ToArray();
+
+            return StatusCode(200, ApiResponse<IEnumerable<WeatherForecast>>.Success(forecasts));
         }
     }
 }
