@@ -1,6 +1,5 @@
 ﻿using Application.Common.Models;
 using Application.Settings;
-using Infrastructure.Settings;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
