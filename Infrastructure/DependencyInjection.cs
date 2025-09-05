@@ -1,4 +1,3 @@
-﻿
 using Application.Common.Interfaces;
 using Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +11,7 @@ public static class DependencyInjection
     {
         services.AddSingleton<IImageService, ImageService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddHttpClient<IGoogleRatingService, GoogleRatingService>();
 
         return services;
     }
