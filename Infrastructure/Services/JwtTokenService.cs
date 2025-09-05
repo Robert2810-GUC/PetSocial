@@ -32,13 +32,13 @@ public class JwtTokenService : IJwtTokenService
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expiryMinutes = _config.GetValue<int>("Jwt:ExpiryMinutes", 60);
+        //var expiryMinutes = _config.GetValue<int>("Jwt:ExpiryMinutes", 60);
 
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+            expires: DateTime.MaxValue,
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
