@@ -40,7 +40,8 @@ public class PetBusinessProfileDto
     public string Address { get; set; }
     public string PhoneNumber { get; set; }
     public string Email { get; set; }
-    public string EINorSSN { get; set; }
+    public string SecurityNumber { get; set; }
+    public string SecurityType { get; set; }
     public int? NumberOfEmployees { get; set; }
     public string? BusinessType { get; set; }
     public double? GoogleRating { get; set; }
@@ -100,7 +101,8 @@ public class GetUserProfileQueryHandler : IRequestHandler<GetUserProfileQuery, A
                 Address = user.PetBusinessProfile.Address,
                 PhoneNumber = user.PetBusinessProfile.PhoneNumber,
                 Email = user.PetBusinessProfile.Email,
-                EINorSSN = user.PetBusinessProfile.EINorSSN,
+                SecurityNumber = user.PetBusinessProfile.SecurityNumber,
+                SecurityType = user.PetBusinessProfile.SecurityType,
                 NumberOfEmployees = user.PetBusinessProfile.NumberOfEmployees,
                 BusinessType = user.PetBusinessProfile.BusinessType,
                 GoogleRating = user.PetBusinessProfile.GoogleRating,
