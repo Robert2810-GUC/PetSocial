@@ -29,7 +29,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
 
     public async Task<ApiResponse<TokenResult>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        if(request is null) return ApiResponse<TokenResult>.Fail("Wrong Call..", 400);
+        if (request is null) return ApiResponse<TokenResult>.Fail("Wrong Call..", 400);
         if (string.IsNullOrWhiteSpace(request.Email) && string.IsNullOrWhiteSpace(request.PhoneNumber))
             return ApiResponse<TokenResult>.Fail("Email or Phone is required.", 400);
 
@@ -54,7 +54,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
             }
         }
 
-        if (identityUser == null)
+        if (identityUser == null || userProfile == null)
             return ApiResponse<TokenResult>.Fail("User not found.", 404);
 
         // Check password
@@ -62,19 +62,18 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         if (!isPasswordValid)
             return ApiResponse<TokenResult>.Fail("Invalid credentials.", 401);
 
-        if (userProfile == null)
+        var isProfileUpdated = false;
+        var isPetRegistered = await _dbContext.UserPets.AnyAsync(p => p.UserId == userProfile.Id); 
+        string userName = !string.IsNullOrEmpty(userProfile!.Name) ? userProfile.Name : identityUser.UserName!;
+        if (isPetRegistered)
         {
-            userProfile = await _dbContext.Users.FirstOrDefaultAsync(u => u.IdentityId == identityUser.Id);
-        }
-
-        var isProfileUpdate = userProfile != null;
-        var isPetRegistered = false;
-        string userName = identityUser.UserName;
-
-        if (isProfileUpdate)
-        {
-            userName = userProfile.Name;
-            isPetRegistered = await _dbContext.UserPets.AnyAsync(p => p.UserId == userProfile.Id);
+            isProfileUpdated = userProfile.UserTypeId switch
+            {
+                1 => await _dbContext.PetOwnerProfiles.AnyAsync(p => p.UserId == userProfile.Id),
+                2 => await _dbContext.PetBusinessProfiles.AnyAsync(p => p.UserId == userProfile.Id),
+                3 => await _dbContext.ContentCreatorProfiles.AnyAsync(p => p.UserId == userProfile.Id),
+                _ => false
+            };
         }
 
         var roles = await _userManager.GetRolesAsync(identityUser);
@@ -86,7 +85,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         {
             Token = token,
             IsPetRegistered = isPetRegistered,
-            IsProfileUpdated = isProfileUpdate,
+            IsProfileUpdated = isProfileUpdated,
             UserName = userName
         };
 
