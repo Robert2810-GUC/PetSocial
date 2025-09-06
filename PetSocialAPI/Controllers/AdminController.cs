@@ -731,50 +731,142 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
     public async Task<IActionResult> GetPetOwners(
         bool? verified = null,
         bool? goldPaw = null,
-        string? countryCode = null)
+        string? countryCode = null,
+        string? search = null)
     {
-        var query = from u in _dbContext.Users.AsNoTracking()
-                    where u.UserTypeId == (long)UserTypeEnum.PetOwner
-                    select new
-                    {
-                        u.Id,
-                        u.Name,
-                        u.CountryCode,
-                        Verified = _dbContext.PetDonations.Any(d => d.Pet!.UserId == u.Id),
-                        GoldPaw = _dbContext.UserPets.Any(p => p.UserId == u.Id && p.IsGoldPaw == true)
-                    };
+        var baseQuery = _dbContext.Users.AsNoTracking()
+            .Where(u => u.UserTypeId == (long)UserTypeEnum.PetOwner);
 
         if (!string.IsNullOrEmpty(countryCode))
-            query = query.Where(x => x.CountryCode == countryCode);
+            baseQuery = baseQuery.Where(u => u.CountryCode == countryCode);
 
-        if (verified.HasValue)
-            query = query.Where(x => x.Verified == verified.Value);
+        if (!string.IsNullOrEmpty(search))
+            baseQuery = baseQuery.Where(u =>
+                u.Name.Contains(search) ||
+                u.PhoneNumber.Contains(search) ||
+                (u.Email != null && u.Email.Contains(search)));
 
-        if (goldPaw.HasValue)
-            query = query.Where(x => x.GoldPaw == goldPaw.Value);
+        var query = baseQuery.Select(u => new
+        {
+            u.Id,
+            u.Name,
+            u.CountryCode,
+            u.PhoneNumber,
+            
+        });
+
 
         var owners = await query.ToListAsync();
         return Ok(owners);
     }
 
-    [HttpGet("business-profiles")]
-    public async Task<IActionResult> GetBusinessProfiles(string? countryCode = null)
+    [HttpGet("pet-owners/{id}")]
+    public async Task<IActionResult> GetPetOwnerDetails(long id)
     {
-        var query = from b in _dbContext.PetBusinessProfiles.AsNoTracking()
-                    join u in _dbContext.Users.AsNoTracking() on b.UserId equals u.Id
-                    select new
-                    {
-                        b.Id,
-                        b.BusinessName,
-                        u.CountryCode,
-                        b.Address
-                    };
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .Include(u => u.PetOwnerProfile)
+            .Include(u => u.UserPets)
+                .ThenInclude(p => p.PetType)
+            .Include(u => u.UserPets)
+                .ThenInclude(p => p.PetBreed)
+            .FirstOrDefaultAsync(u => u.Id == id && u.UserTypeId == (long)UserTypeEnum.PetOwner);
+
+        if (user == null)
+            return NotFound("Pet owner not found.");
+
+        var petIds = user.UserPets.Select(p => p.Id).ToList();
+        var donations = await _dbContext.PetDonations
+            .Where(d => petIds.Contains(d.PetId))
+            .ToListAsync();
+        var stories = await _dbContext.PetStories
+            .Where(s => petIds.Contains(s.PetId))
+            .ToListAsync();
+
+        var result = new
+        {
+            user.Id,
+            user.Name,
+            user.CountryCode,
+            user.PhoneNumber,
+            user.Email,
+            Profile = user.PetOwnerProfile,
+            Pets = user.UserPets.Select(p => new
+            {
+                p.Id,
+                p.PetName,
+                p.PetTypeId,
+                PetType = p.PetType!.Name,
+                p.PetBreedId,
+                PetBreed = p.PetBreed != null ? p.PetBreed.Name : null,
+                p.ImagePath,
+                IsGoldPaw= p.IsGoldPaw,
+                IsVerified = donations.Count > 0,
+                Donations = donations
+                    .Where(d => d.PetId == p.Id)
+                    .Select(d => new { d.Id, d.Amount, d.DonatedAt }),
+                Stories = stories
+                    .Where(s => s.PetId == p.Id)
+                    .Select(s => new { s.Id, s.MediaUrl, s.MediaType, s.Caption, s.CreatedAt })
+            })
+        };
+
+        return Ok(result);
+    }
+
+    [HttpGet("business-profiles")]
+    public async Task<IActionResult> GetBusinessProfiles(string? countryCode = null, string? search = null)
+    {
+        var query = _dbContext.PetBusinessProfiles.AsNoTracking()
+            .Join(_dbContext.Users.AsNoTracking(),
+                b => b.UserId,
+                u => u.Id,
+                (b, u) => new { b, u });
 
         if (!string.IsNullOrEmpty(countryCode))
-            query = query.Where(x => x.CountryCode == countryCode);
+            query = query.Where(x => x.u.CountryCode == countryCode);
 
-        var businesses = await query.ToListAsync();
+        if (!string.IsNullOrEmpty(search))
+            query = query.Where(x =>
+                x.b.BusinessName.Contains(search) ||
+                x.u.PhoneNumber.Contains(search) ||
+                (x.u.Email != null && x.u.Email.Contains(search)));
+
+        var businesses = await query
+            .Select(x => new
+            {
+                x.b.Id,
+                x.b.BusinessName,
+                x.u.CountryCode,
+                x.b.Address
+            })
+            .ToListAsync();
+
         return Ok(businesses);
+    }
+
+    [HttpGet("business-profiles/{id}")]
+    public async Task<IActionResult> GetBusinessProfileDetails(long id)
+    {
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .Include(u => u.PetBusinessProfile)
+            .FirstOrDefaultAsync(u => u.Id == id && u.UserTypeId == (long)UserTypeEnum.PetBusiness);
+
+        if (user == null)
+            return NotFound("Business profile not found.");
+
+        var result = new
+        {
+            user.Id,
+            user.Name,
+            user.CountryCode,
+            user.PhoneNumber,
+            user.Email,
+            Business = user.PetBusinessProfile
+        };
+
+        return Ok(result);
     }
 
     [HttpGet("stories/summary")]

@@ -48,6 +48,22 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
             if (user == null)
                 return ApiResponse<long>.Fail("User not found.", 404);
 
+            if (request.PetBreedId.HasValue)
+            {
+                var validBreed = await _dbContext.PetBreeds
+                    .AsNoTracking()
+                    .AnyAsync(b => b.Id == request.PetBreedId.Value &&
+                                   b.PetTypeID == request.PetTypeId, cancellationToken);
+
+                if (!validBreed)
+                {
+                    return ApiResponse<long>.Fail(
+                        $"Selected PetBreed (Id: {request.PetBreedId}) does not belong to PetType (Id: {request.PetTypeId}).",
+                        400
+                    );
+                }
+            }
+
             if (!string.IsNullOrEmpty(request.PetUserName))
             {
                 var exists = await _dbContext.UserPets

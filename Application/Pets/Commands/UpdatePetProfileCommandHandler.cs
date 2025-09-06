@@ -42,6 +42,22 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
             if (pet == null)
                 return ApiResponse<long>.Fail("Pet not found.", 404);
 
+            if (request.PetBreedId.HasValue)
+            {
+                var validBreed = await _dbContext.PetBreeds
+                    .AsNoTracking()
+                    .AnyAsync(b => b.Id == request.PetBreedId.Value &&
+                                   b.PetTypeID == pet.PetTypeId, cancellationToken);
+
+                if (!validBreed)
+                {
+                    return ApiResponse<long>.Fail(
+                        $"Selected PetBreed (Id: {request.PetBreedId}) does not belong to PetType (Id: {pet.PetTypeId}).",
+                        400
+                    );
+                }
+            }
+
             if (!string.IsNullOrEmpty(request.PetUserName))
             {
                 var exists = await _dbContext.UserPets
@@ -75,7 +91,7 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
             pet.Gender = request.Gender;
             pet.DOB = request.DOB;
             pet.PetBreedId = request.PetBreedId;
-            //pet.CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed?.Trim() : null;
+            pet.CustomPetBreed = request.PetBreedId == ReservedIds.PetBreedOther ? request.CustomPetBreed?.Trim() : null;
             pet.Food = request.Food;
             pet.Weight = request.Weight;
             pet.WeightUnit = request.WeightUnit;

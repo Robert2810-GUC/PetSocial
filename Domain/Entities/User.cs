@@ -16,6 +16,8 @@ public class User
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     // Navigation properties
+    public ICollection<UserPet>? UserPets { get; set; }
+
     public UserType UserType { get; set; }
     public PetOwnerProfile PetOwnerProfile { get; set; }
     public PetBusinessProfile PetBusinessProfile { get; set; }
