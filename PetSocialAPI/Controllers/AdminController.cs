@@ -751,15 +751,10 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
             u.Id,
             u.Name,
             u.CountryCode,
-            Verified = _dbContext.PetDonations.Any(d => d.Pet!.UserId == u.Id),
-            GoldPaw = _dbContext.UserPets.Any(p => p.UserId == u.Id && p.IsGoldPaw == true)
+            u.PhoneNumber,
+            
         });
 
-        if (verified.HasValue)
-            query = query.Where(x => x.Verified == verified.Value);
-
-        if (goldPaw.HasValue)
-            query = query.Where(x => x.GoldPaw == goldPaw.Value);
 
         var owners = await query.ToListAsync();
         return Ok(owners);
@@ -805,6 +800,8 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
                 p.PetBreedId,
                 PetBreed = p.PetBreed != null ? p.PetBreed.Name : null,
                 p.ImagePath,
+                IsGoldPaw= p.IsGoldPaw,
+                IsVerified = donations.Count > 0,
                 Donations = donations
                     .Where(d => d.PetId == p.Id)
                     .Select(d => new { d.Id, d.Amount, d.DonatedAt }),
