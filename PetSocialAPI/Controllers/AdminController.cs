@@ -700,5 +700,97 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
         }
     }
 
+    // ---------------------------
+    // 📩 DASHBOARD & FILTERED LISTS
+    // ---------------------------
+
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> GetDashboard()
+    {
+        var ownerCount = await _dbContext.Users
+            .AsNoTracking()
+            .CountAsync(u => u.UserTypeId == (long)UserTypeEnum.PetOwner);
+
+        var businessCount = await _dbContext.PetBusinessProfiles
+            .AsNoTracking()
+            .CountAsync();
+
+        var storyCount = await _dbContext.PetStories
+            .AsNoTracking()
+            .CountAsync();
+
+        return Ok(new
+        {
+            PetOwners = ownerCount,
+            Businesses = businessCount,
+            Stories = storyCount
+        });
+    }
+
+    [HttpGet("pet-owners")]
+    public async Task<IActionResult> GetPetOwners(
+        bool? verified = null,
+        bool? goldPaw = null,
+        string? countryCode = null)
+    {
+        var query = from u in _dbContext.Users.AsNoTracking()
+                    where u.UserTypeId == (long)UserTypeEnum.PetOwner
+                    select new
+                    {
+                        u.Id,
+                        u.Name,
+                        u.CountryCode,
+                        Verified = _dbContext.PetDonations.Any(d => d.Pet!.UserId == u.Id),
+                        GoldPaw = _dbContext.UserPets.Any(p => p.UserId == u.Id && p.IsGoldPaw == true)
+                    };
+
+        if (!string.IsNullOrEmpty(countryCode))
+            query = query.Where(x => x.CountryCode == countryCode);
+
+        if (verified.HasValue)
+            query = query.Where(x => x.Verified == verified.Value);
+
+        if (goldPaw.HasValue)
+            query = query.Where(x => x.GoldPaw == goldPaw.Value);
+
+        var owners = await query.ToListAsync();
+        return Ok(owners);
+    }
+
+    [HttpGet("business-profiles")]
+    public async Task<IActionResult> GetBusinessProfiles(string? countryCode = null)
+    {
+        var query = from b in _dbContext.PetBusinessProfiles.AsNoTracking()
+                    join u in _dbContext.Users.AsNoTracking() on b.UserId equals u.Id
+                    select new
+                    {
+                        b.Id,
+                        b.BusinessName,
+                        u.CountryCode,
+                        b.Address
+                    };
+
+        if (!string.IsNullOrEmpty(countryCode))
+            query = query.Where(x => x.CountryCode == countryCode);
+
+        var businesses = await query.ToListAsync();
+        return Ok(businesses);
+    }
+
+    [HttpGet("stories/summary")]
+    public async Task<IActionResult> GetStoriesSummary(int days = 7)
+    {
+        var start = DateTime.UtcNow.Date.AddDays(-days + 1);
+
+        var data = await _dbContext.PetStories
+            .AsNoTracking()
+            .Where(s => s.CreatedAt.Date >= start)
+            .GroupBy(s => s.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .OrderBy(g => g.Date)
+            .ToListAsync();
+
+        return Ok(data);
+    }
 }
 
