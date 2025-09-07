@@ -57,20 +57,22 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
                     );
                 }
             }
-
-            if (!string.IsNullOrEmpty(request.PetUserName) && pet.PetUserName != request.PetUserName)
+            if (pet.PetUserName != request.PetUserName)
             {
-                var exists = await _dbContext.UserPets
-                    .AsNoTracking()
-                    .AnyAsync(up => up.PetUserName != null &&
-                                    up.PetUserName.ToLower() == request.PetUserName.Trim().ToLower(), cancellationToken);
+                if (!string.IsNullOrEmpty(request.PetUserName))
+                {
+                    var exists = await _dbContext.UserPets
+                        .AsNoTracking()
+                        .AnyAsync(up => up.PetUserName != null &&
+                                        up.PetUserName.ToLower() == request.PetUserName.Trim().ToLower(), cancellationToken);
 
-                if (exists)
-                    return ApiResponse<long>.Fail("User Name already taken.", 409);
-            }
-            else
-            {
-                request.PetUserName = getUniquePetUserName(request.PetName);
+                    if (exists)
+                        return ApiResponse<long>.Fail("User Name already taken.", 409);
+                }
+                else
+                {
+                    request.PetUserName = getUniquePetUserName(request.PetName);
+                }
             }
 
 
