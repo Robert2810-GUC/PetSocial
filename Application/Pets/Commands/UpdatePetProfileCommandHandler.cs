@@ -58,7 +58,7 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
                 }
             }
 
-            if (!string.IsNullOrEmpty(request.PetUserName))
+            if (!string.IsNullOrEmpty(request.PetUserName) && pet.PetUserName != request.PetUserName)
             {
                 var exists = await _dbContext.UserPets
                     .AsNoTracking()
