@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Infrastructure.Persistence;
 
+/// <summary>
+/// Automatically clears lookup cache entries (e.g., colors, foods, pet types)
+/// whenever the underlying data changes so subsequent requests fetch fresh data.
+/// </summary>
 public class LookupCacheInvalidationInterceptor : SaveChangesInterceptor
 {
     private readonly ICacheService _cache;

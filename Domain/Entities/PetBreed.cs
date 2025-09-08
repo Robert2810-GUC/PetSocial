@@ -3,7 +3,7 @@
 public class PetBreed
 {
     public long Id { get; set; }
-    public long PetTypeID { get; set; }
+    public long PetTypeId { get; set; }
     public string Name { get; set; }
     public int SortOrder { get; set; } = 9999;
 

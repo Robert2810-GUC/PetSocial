@@ -183,7 +183,7 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
             .AsQueryable();
 
         if (petTypeId.HasValue)
-            query = query.Where(b => b.PetTypeID == petTypeId.Value);
+            query = query.Where(b => b.PetTypeId == petTypeId.Value);
 
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(b => b.Name.ToLower().Contains(search.Trim().ToLower()));
@@ -191,14 +191,14 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
         var result = await (
             petTypeId.HasValue
                 ? query.OrderBy(b => b.SortOrder)
-                : query.OrderBy(b => b.PetTypeID).ThenBy(b => b.SortOrder)
+                : query.OrderBy(b => b.PetTypeId).ThenBy(b => b.SortOrder)
         )
         .Select(b => new
         {
             b.Id,
             b.Name,
             b.SortOrder,
-            b.PetTypeID,
+            b.PetTypeId,
             PetTypeName = b.PetType.Name
         })
         .ToListAsync();
@@ -210,12 +210,12 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
     [HttpPost("breeds")]
     public async Task<IActionResult> CreateBreed([FromBody] PetBreed breed)
     {
-        if (string.IsNullOrWhiteSpace(breed.Name) || breed.PetTypeID <= 0)
-            return BadRequest("Breed name and PetTypeID are required.");
+        if (string.IsNullOrWhiteSpace(breed.Name) || breed.PetTypeId <= 0)
+            return BadRequest("Breed name and PetTypeId are required.");
 
         bool exists = await _dbContext.PetBreeds.AnyAsync(b =>
             b.Name.ToLower() == breed.Name.Trim().ToLower() &&
-            b.PetTypeID == breed.PetTypeID);
+            b.PetTypeId == breed.PetTypeId);
 
         if (exists)
             return Conflict("A breed with the same name already exists for this pet type.");
@@ -227,7 +227,7 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
             if (breed.SortOrder == 0)
             {
                 int maxSortOrder = await _dbContext.PetBreeds
-                    .Where(b => b.PetTypeID == breed.PetTypeID)
+                    .Where(b => b.PetTypeId == breed.PetTypeId)
                     .MaxAsync(b => (int?)b.SortOrder) ?? 0;
 
                 breed.SortOrder = maxSortOrder + 1;
@@ -249,8 +249,8 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
     [HttpPut("breeds/{id}")]
     public async Task<IActionResult> UpdateBreed(long id, [FromBody] PetBreed model)
     {
-        if (string.IsNullOrWhiteSpace(model.Name) || model.PetTypeID <= 0)
-            return BadRequest("Breed name and PetTypeID are required.");
+        if (string.IsNullOrWhiteSpace(model.Name) || model.PetTypeId <= 0)
+            return BadRequest("Breed name and PetTypeId are required.");
 
         using var tx = await _dbContext.Database.BeginTransactionAsync();
 
@@ -262,7 +262,7 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
 
             bool nameConflict = await _dbContext.PetBreeds.AnyAsync(b =>
                 b.Name.ToLower() == model.Name.Trim().ToLower() &&
-                b.PetTypeID == model.PetTypeID &&
+                b.PetTypeId == model.PetTypeId &&
                 b.Id != id);
 
             if (nameConflict)
@@ -270,7 +270,7 @@ public class AdminController(ApplicationDbContext db, IImageService imageService
 
             existing.Name = model.Name.Trim();
             existing.SortOrder = model.SortOrder;
-            existing.PetTypeID = model.PetTypeID;
+            existing.PetTypeId = model.PetTypeId;
 
             await _dbContext.SaveChangesAsync();
             await tx.CommitAsync();
