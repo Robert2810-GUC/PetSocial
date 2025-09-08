@@ -2,6 +2,7 @@ using Application.Common.Interfaces;
 using Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace Infrastructure;
 
@@ -15,8 +16,19 @@ public static class DependencyInjection
 
         if (configuration.GetValue<bool>("Redis:UseRedis"))
         {
-            services.AddStackExchangeRedisCache(opt =>
-                opt.Configuration = configuration["Redis:ConnectionString"]);
+            var connection = configuration["Redis:ConnectionString"];
+
+            if (!string.IsNullOrWhiteSpace(connection) &&
+                (connection.StartsWith("redis://") || connection.StartsWith("rediss://")))
+            {
+                var uri = new Uri(connection);
+                var userInfo = uri.UserInfo.Split(':', 2);
+                var password = userInfo.Length > 1 ? userInfo[1] : string.Empty;
+                var useSsl = uri.Scheme == "rediss";
+                connection = $"{uri.Host}:{uri.Port},password={password},ssl={useSsl},abortConnect=False";
+            }
+
+            services.AddStackExchangeRedisCache(opt => opt.Configuration = connection);
             services.AddSingleton<ICacheService, RedisCacheService>();
         }
         else
