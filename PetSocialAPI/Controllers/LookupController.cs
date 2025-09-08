@@ -1,7 +1,7 @@
 ﻿using Application.Common.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Persistence;
+using MediatR;
+using Application.Lookups.Queries;
 
 namespace PetSocialAPI.Controllers;
 
@@ -9,62 +9,45 @@ namespace PetSocialAPI.Controllers;
 [Route("api/[controller]")]
 public class LookupController : ControllerBase
 {
-    private readonly ApplicationDbContext _db;
-    public LookupController(ApplicationDbContext db) { _db = db; }
+    private readonly IMediator _mediator;
+
+    public LookupController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
 
     [HttpGet("pet-types")]
     public async Task<IActionResult> GetPetTypes()
     {
-        var types = await _db.PetTypes
-            .OrderBy(t => t.SortOrder)
-            .Select(t => new { t.Id, t.Name, t.ImagePath })
-            .ToListAsync();
-
-        return StatusCode(200, ApiResponse<object>.Success(types));
+        var response = await _mediator.Send(new GetPetTypesQuery());
+        return StatusCode(response.StatusCode, response);
     }
 
     [HttpGet("breeds")]
     public async Task<IActionResult> GetBreeds(long petTypeId)
     {
-        var breeds = await _db.PetBreeds
-            .Where(b => b.PetTypeID == petTypeId)
-            .OrderBy(b => b.SortOrder)
-            .Select(b => new { b.Id, b.Name })
-            .ToListAsync();
-
-        return StatusCode(200, ApiResponse<object>.Success(breeds));
+        var response = await _mediator.Send(new GetBreedsQuery(petTypeId));
+        return StatusCode(response.StatusCode, response);
     }
 
     [HttpGet("colors")]
-    public async Task<IActionResult> GetColors(long? petTypeId = null)
+    public async Task<IActionResult> GetColors()
     {
-        var colors = await _db.PetColors
-            //.Where(c => c.PetTypeId == petTypeId) // if needed
-            .OrderBy(c => c.SortOrder)
-            .Select(c => new { c.Id, c.Name })
-            .ToListAsync();
-
-        return StatusCode(200, ApiResponse<object>.Success(colors));
+        var response = await _mediator.Send(new GetColorsQuery());
+        return StatusCode(response.StatusCode, response);
     }
 
     [HttpGet("usertypes")]
     public async Task<IActionResult> GetUserTypes()
     {
-        var userTypes = await _db.UserTypes
-            .Select(c => new { c.Id, c.Name, c.ImagePath, c.Description })
-            .ToListAsync();
-
-        return StatusCode(200, ApiResponse<object>.Success(userTypes));
+        var response = await _mediator.Send(new GetUserTypesQuery());
+        return StatusCode(response.StatusCode, response);
     }
 
     [HttpGet("food")]
     public async Task<IActionResult> GetFood()
     {
-        var foods = await _db.PetFoods
-            .OrderBy(c => c.SortOrder)
-            .Select(c => new { c.Id, c.Name })
-            .ToListAsync();
-
-        return StatusCode(200, ApiResponse<object>.Success(foods));
+        var response = await _mediator.Send(new GetPetFoodsQuery());
+        return StatusCode(response.StatusCode, response);
     }
 }

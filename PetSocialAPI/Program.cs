@@ -10,21 +10,23 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text.Json.Serialization;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using System.IO;
 
-//serilog 
+var builder = WebApplication.CreateBuilder(args);
+
+var logFilePath = builder.Configuration["Logging:FilePath"] ?? "Logs/PetSocialLog/requests.txt";
+var fullLogPath = Path.GetFullPath(logFilePath);
+Directory.CreateDirectory(Path.GetDirectoryName(fullLogPath)!);
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Error)
     .WriteTo.Console()
-    .WriteTo.File(@"C:\Logs\PetSocialLog\requests.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.File(fullLogPath, rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
-
-
-
-
-var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // Add services to the container.
@@ -32,6 +34,14 @@ builder.Host.UseSerilog();
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("fixed", opt =>
+    {
+        opt.PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:PermitLimit", 100);
+        opt.Window = TimeSpan.FromMinutes(builder.Configuration.GetValue<int>("RateLimiting:WindowMinutes", 1));
+    });
+});
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -47,7 +57,7 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
-        //RequireExpirationTime = true,
+        ValidateLifetime = true,
     };
 
 });
@@ -115,6 +125,7 @@ app.UseReDoc(options =>
 app.UseSwaggerUI();
 app.UseCors("AllowDevClient");
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -13,6 +13,18 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddHttpClient<IGoogleRatingService, GoogleRatingService>();
 
+        if (configuration.GetValue<bool>("Redis:UseRedis"))
+        {
+            services.AddStackExchangeRedisCache(opt =>
+                opt.Configuration = configuration["Redis:ConnectionString"]);
+            services.AddSingleton<ICacheService, RedisCacheService>();
+        }
+        else
+        {
+            services.AddMemoryCache();
+            services.AddSingleton<ICacheService, MemoryCacheService>();
+        }
+
         return services;
     }
 }

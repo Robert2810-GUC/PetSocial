@@ -42,6 +42,10 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
         if (!string.IsNullOrWhiteSpace(request.Email))
         {
             identityUser = await _userManager.FindByEmailAsync(request.Email);
+            if (identityUser != null)
+            {
+                userProfile = await _dbContext.Users.FirstOrDefaultAsync(u => u.IdentityId == identityUser.Id, cancellationToken);
+            }
         }
         else if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
         {

@@ -76,7 +76,7 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
             }
             else
             {
-                request.PetUserName = getUniquePetUserName(request.PetName);
+                request.PetUserName = await GetUniquePetUserNameAsync(request.PetName, cancellationToken);
             }
 
             // 3. Insert UserPet
@@ -187,13 +187,13 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
         }
     }
 
-    private string? getUniquePetUserName(string petName)
+    private async Task<string?> GetUniquePetUserNameAsync(string petName, CancellationToken cancellationToken)
     {
         var baseUserName = petName.Trim().ToLower().Replace(" ", "");
         var uniqueUserName = baseUserName;
-        uniqueUserName = $"{baseUserName}1234";
-        while (_dbContext.UserPets.Any(up => up.PetUserName != null &&
-                                      up.PetUserName.ToLower() == uniqueUserName))
+
+        while (await _dbContext.UserPets.AnyAsync(up => up.PetUserName != null &&
+                                      up.PetUserName.ToLower() == uniqueUserName, cancellationToken))
         {
             uniqueUserName = $"{baseUserName}{Random.Shared.Next(0, 9999):0000}";
         }

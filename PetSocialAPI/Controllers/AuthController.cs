@@ -29,8 +29,11 @@ public class AuthController : ControllerBase
         return StatusCode(response.StatusCode, response);
     }
     [HttpPost("request-otp")]
-    public async Task<IActionResult> RequestOtp([FromBody] RequestOtpCommand cmd) =>
-        StatusCode((await _mediator.Send(cmd)).StatusCode, await _mediator.Send(cmd));
+    public async Task<IActionResult> RequestOtp([FromBody] RequestOtpCommand cmd)
+    {
+        var response = await _mediator.Send(cmd);
+        return StatusCode(response.StatusCode, response);
+    }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
