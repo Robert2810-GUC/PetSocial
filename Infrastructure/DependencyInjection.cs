@@ -1,5 +1,7 @@
 using Application.Common.Interfaces;
 using Infrastructure.Services;
+using Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -13,6 +15,7 @@ public static class DependencyInjection
         services.AddSingleton<IImageService, ImageService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddHttpClient<IGoogleRatingService, GoogleRatingService>();
+        services.AddScoped<ISaveChangesInterceptor, LookupCacheInvalidationInterceptor>();
 
         if (configuration.GetValue<bool>("Redis:UseRedis"))
         {

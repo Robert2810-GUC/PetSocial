@@ -22,5 +22,11 @@ public class MemoryCacheService : ICacheService
         _cache.Set(key, value, ttl);
         return Task.CompletedTask;
     }
+
+    public Task RemoveAsync(string key)
+    {
+        _cache.Remove(key);
+        return Task.CompletedTask;
+    }
 }
 

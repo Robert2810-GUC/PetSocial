@@ -28,5 +28,10 @@ public class RedisCacheService : ICacheService
         var json = JsonSerializer.Serialize(value);
         await _cache.SetStringAsync(key, json, options);
     }
+
+    public Task RemoveAsync(string key)
+    {
+        return _cache.RemoveAsync(key);
+    }
 }
 
