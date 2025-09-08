@@ -4,42 +4,53 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 using System;
 
-namespace Infrastructure;
-
-public static class DependencyInjection
+namespace Infrastructure
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static class DependencyInjection
     {
-        services.AddSingleton<IImageService, ImageService>();
-        services.AddScoped<IJwtTokenService, JwtTokenService>();
-        services.AddHttpClient<IGoogleRatingService, GoogleRatingService>();
-        services.AddScoped<ISaveChangesInterceptor, LookupCacheInvalidationInterceptor>();
-
-        if (configuration.GetValue<bool>("Redis:UseRedis"))
+        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            var connection = configuration["Redis:ConnectionString"];
+            // Application services
+            services.AddSingleton<IImageService, ImageService>();
+            services.AddScoped<IJwtTokenService, JwtTokenService>();
+            services.AddHttpClient<IGoogleRatingService, GoogleRatingService>();
+            services.AddScoped<ISaveChangesInterceptor, LookupCacheInvalidationInterceptor>();
 
-            if (!string.IsNullOrWhiteSpace(connection) &&
-                (connection.StartsWith("redis://") || connection.StartsWith("rediss://")))
+            // Redis or Memory Cache
+            if (configuration.GetValue<bool>("Redis:UseRedis"))
             {
-                var uri = new Uri(connection);
-                var userInfo = uri.UserInfo.Split(':', 2);
-                var password = userInfo.Length > 1 ? userInfo[1] : string.Empty;
-                var useSsl = uri.Scheme == "rediss";
-                connection = $"{uri.Host}:{uri.Port},password={password},ssl={useSsl},abortConnect=False";
+                var connectionString = configuration["Redis:ConnectionString"];
+
+                if (!string.IsNullOrWhiteSpace(connectionString))
+                {
+                    // Parse full connection string with options
+                    var options = ConfigurationOptions.Parse(connectionString, true);
+
+                    // Recommended settings for cloud Redis
+                    options.AbortOnConnectFail = false; 
+                    options.ConnectRetry = 3;          
+                    options.ConnectTimeout = 10000;   
+                    options.SyncTimeout = 10000;       
+
+                    services.AddStackExchangeRedisCache(opt =>
+                    {
+                        opt.ConfigurationOptions = options;
+                    });
+
+                    services.AddSingleton<ICacheService, RedisCacheService>();
+                }
+            }
+            else
+            {
+                // Fallback to in-memory cache
+                services.AddMemoryCache();
+                services.AddSingleton<ICacheService, MemoryCacheService>();
             }
 
-            services.AddStackExchangeRedisCache(opt => opt.Configuration = connection);
-            services.AddSingleton<ICacheService, RedisCacheService>();
+            return services;
         }
-        else
-        {
-            services.AddMemoryCache();
-            services.AddSingleton<ICacheService, MemoryCacheService>();
-        }
-
-        return services;
     }
 }
