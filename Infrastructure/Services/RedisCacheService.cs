@@ -25,6 +25,7 @@ public class RedisCacheService : ICacheService
         {
             AbsoluteExpirationRelativeToNow = ttl
         };
+
         var json = JsonSerializer.Serialize(value);
         await _cache.SetStringAsync(key, json, options);
     }
