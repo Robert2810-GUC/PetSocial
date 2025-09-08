@@ -6,9 +6,6 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace Infrastructure.Persistence;
 
 /// <summary>
-/// Removes lookup cache entries (e.g., colors, foods, pet types) whenever
-/// the underlying data changes. It does **not** repopulate the cache; the next
-/// request will naturally fetch from the database and store a fresh copy.
 /// Automatically clears lookup cache entries (e.g., colors, foods, pet types)
 /// whenever the underlying data changes so subsequent requests fetch fresh data.
 /// </summary>
