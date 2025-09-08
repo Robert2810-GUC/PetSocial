@@ -29,7 +29,7 @@ public class GetBreedsQueryHandler : IRequestHandler<GetBreedsQuery, ApiResponse
             return ApiResponse<List<BreedDto>>.Success(cached);
 
         var breeds = await _db.PetBreeds
-            .Where(b => b.PetTypeID == request.PetTypeId)
+            .Where(b => b.PetTypeId == request.PetTypeId)
             .OrderBy(b => b.SortOrder)
             .Select(b => new BreedDto(b.Id, b.Name))
             .ToListAsync(cancellationToken);

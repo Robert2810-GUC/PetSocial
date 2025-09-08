@@ -53,7 +53,7 @@ public class RegisterPetCommandHandler : IRequestHandler<RegisterPetCommand, Api
                 var validBreed = await _dbContext.PetBreeds
                     .AsNoTracking()
                     .AnyAsync(b => b.Id == request.PetBreedId.Value &&
-                                   b.PetTypeID == request.PetTypeId, cancellationToken);
+                                   b.PetTypeId == request.PetTypeId, cancellationToken);
 
                 if (!validBreed)
                 {

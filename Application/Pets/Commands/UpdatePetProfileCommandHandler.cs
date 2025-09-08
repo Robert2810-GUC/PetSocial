@@ -47,7 +47,7 @@ public class UpdatePetProfileCommandHandler : IRequestHandler<UpdatePetProfileCo
                 var validBreed = await _dbContext.PetBreeds
                     .AsNoTracking()
                     .AnyAsync(b => b.Id == request.PetBreedId.Value &&
-                                   b.PetTypeID == pet.PetTypeId, cancellationToken);
+                                   b.PetTypeId == pet.PetTypeId, cancellationToken);
 
                 if (!validBreed)
                 {

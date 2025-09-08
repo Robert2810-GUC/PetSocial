@@ -5,6 +5,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Infrastructure.Persistence;
 
+/// <summary>
+/// Removes lookup cache entries (e.g., colors, foods, pet types) whenever
+/// the underlying data changes. It does **not** repopulate the cache; the next
+/// request will naturally fetch from the database and store a fresh copy.
+/// </summary>
 public class LookupCacheInvalidationInterceptor : SaveChangesInterceptor
 {
     private readonly ICacheService _cache;
