@@ -27,6 +27,13 @@ public class RegisterPetBusinessCommandHandler : IRequestHandler<RegisterPetBusi
         using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            if (string.IsNullOrWhiteSpace(request.BusinessName) ||
+                string.IsNullOrWhiteSpace(request.PhoneNumber) ||
+                string.IsNullOrWhiteSpace(request.Email))
+            {
+                return ApiResponse<long>.Fail("Business Name, Phone Number and Email are required.", 400);
+            }
+
             var user = await _dbContext.Users
                 .Where(u => u.IdentityId == request.IdentityId)
                 .Select(u => new { u.Id })
@@ -56,7 +63,11 @@ public class RegisterPetBusinessCommandHandler : IRequestHandler<RegisterPetBusi
                 profilePublicId = upload.PublicId;
             }
 
-            double? rating = await _googleRatingService.GetRatingAsync(request.BusinessName, request.Address, cancellationToken);
+            double? rating = null;
+            if (!string.IsNullOrWhiteSpace(request.Address))
+            {
+                rating = await _googleRatingService.GetRatingAsync(request.BusinessName, request.Address, cancellationToken);
+            }
 
             var profile = new PetBusinessProfile
             {
@@ -71,6 +82,10 @@ public class RegisterPetBusinessCommandHandler : IRequestHandler<RegisterPetBusi
                 SecurityType = request.SecurityType,
                 NumberOfEmployees = request.NumberOfEmployees,
                 BusinessType = request.BusinessType,
+                ServicesOffered = request.ServicesOffered,
+                HasParking = request.HasParking,
+                WebsiteUrl = request.WebsiteUrl,
+                PaymentMethods = request.PaymentMethods,
                 GoogleRating = rating,
                 GoogleRatingLink = request.GoogleRatingLink,
                 BannerImagePath = bannerUrl,
