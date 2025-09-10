@@ -7,6 +7,6 @@ public class ForgotPasswordCommand : IRequest<ApiResponse<string>>
 {
     public string CountryCode { get; set; }
     public string PhoneNumber { get; set; }
-    public bool SendToEmail { get; set; }
+    public bool SendToEmail { get; set; } = false;
     public string? Email { get; set; }
 }
