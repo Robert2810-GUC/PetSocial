@@ -41,11 +41,29 @@ public class RegisterPetBusinessCommandHandler : IRequestHandler<RegisterPetBusi
             if (user == null)
                 return ApiResponse<long>.Fail("User not found.", 404);
 
+            var isPetOwner = await _dbContext.PetOwnerProfiles
+                .AsNoTracking()
+                .AnyAsync(p => p.UserId == user.Id, cancellationToken);
+            if (isPetOwner)
+                return ApiResponse<long>.Fail("User already has a pet owner profile.", 409);
+
             var existing = await _dbContext.PetBusinessProfiles
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.UserId == user.Id, cancellationToken);
             if (existing != null)
                 return ApiResponse<long>.Fail("Business profile already exists.", 409);
+
+            var phoneTaken = await _dbContext.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.PhoneNumber == request.PhoneNumber && u.Id != user.Id, cancellationToken);
+            if (phoneTaken)
+                return ApiResponse<long>.Fail("Phone number already in use.", 409);
+
+            var emailTaken = await _dbContext.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.Email == request.Email && u.Id != user.Id, cancellationToken);
+            if (emailTaken)
+                return ApiResponse<long>.Fail("Email already in use.", 409);
 
             string? bannerUrl = null;
             if (request.BannerImage != null)
