@@ -7,7 +7,7 @@ namespace Application.Businesses.Commands;
 
 public class UpdatePetBusinessProfileCommand : IRequest<ApiResponse<long>>
 {
-    public string IdentityId { get; set; }
+    public string? IdentityId { get; set; }
     [Required]
     public string BusinessName { get; set; }
     public string? OwnerName { get; set; }
