@@ -1,4 +1,5 @@
-﻿using Application.Common.Models;
+﻿using Application.Admin.Commands;
+using Application.Common.Models;
 using Application.Users.Commands;
 using Infrastructure.Services;
 using MediatR;
@@ -18,6 +19,12 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
+    {
+        var response = await _mediator.Send(command);
+        return StatusCode(response.StatusCode, response);
+    }
+    [HttpPost("admin-login")]
+    public async Task<IActionResult> AdminLogin([FromBody] AdminLoginCommand command)
     {
         var response = await _mediator.Send(command);
         return StatusCode(response.StatusCode, response);
