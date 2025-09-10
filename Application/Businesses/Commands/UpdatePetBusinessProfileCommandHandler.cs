@@ -40,6 +40,18 @@ public class UpdatePetBusinessProfileCommandHandler : IRequestHandler<UpdatePetB
             if (user == null)
                 return ApiResponse<long>.Fail("User not found.", 404);
 
+            var phoneTaken = await _dbContext.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.PhoneNumber == request.PhoneNumber && u.Id != user.Id, cancellationToken);
+            if (phoneTaken)
+                return ApiResponse<long>.Fail("Phone number already in use.", 409);
+
+            var emailTaken = await _dbContext.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.Email == request.Email && u.Id != user.Id, cancellationToken);
+            if (emailTaken)
+                return ApiResponse<long>.Fail("Email already in use.", 409);
+
             var profile = user.PetBusinessProfile;
             if (profile == null)
             {
