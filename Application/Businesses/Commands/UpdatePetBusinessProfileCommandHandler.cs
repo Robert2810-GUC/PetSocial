@@ -27,6 +27,13 @@ public class UpdatePetBusinessProfileCommandHandler : IRequestHandler<UpdatePetB
         using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            if (string.IsNullOrWhiteSpace(request.BusinessName) ||
+                string.IsNullOrWhiteSpace(request.PhoneNumber) ||
+                string.IsNullOrWhiteSpace(request.Email))
+            {
+                return ApiResponse<long>.Fail("Business Name, Phone Number and Email are required.", 400);
+            }
+
             var user = await _dbContext.Users
                 .Include(u => u.PetBusinessProfile)
                 .FirstOrDefaultAsync(u => u.IdentityId == request.IdentityId, cancellationToken);
@@ -56,7 +63,11 @@ public class UpdatePetBusinessProfileCommandHandler : IRequestHandler<UpdatePetB
                 profilePublicId = upload.PublicId;
             }
 
-            double? rating = await _googleRatingService.GetRatingAsync(request.BusinessName, request.Address, cancellationToken);
+            double? rating = null;
+            if (!string.IsNullOrWhiteSpace(request.Address))
+            {
+                rating = await _googleRatingService.GetRatingAsync(request.BusinessName, request.Address, cancellationToken);
+            }
 
             profile.BusinessName = request.BusinessName;
             profile.OwnerName = request.OwnerName;
@@ -68,6 +79,10 @@ public class UpdatePetBusinessProfileCommandHandler : IRequestHandler<UpdatePetB
             profile.SecurityType = request.SecurityType;
             profile.NumberOfEmployees = request.NumberOfEmployees;
             profile.BusinessType = request.BusinessType;
+            profile.ServicesOffered = request.ServicesOffered;
+            profile.HasParking = request.HasParking;
+            profile.WebsiteUrl = request.WebsiteUrl;
+            profile.PaymentMethods = request.PaymentMethods;
             profile.GoogleRating = rating;
             profile.GoogleRatingLink = request.GoogleRatingLink;
             profile.BannerImagePath = bannerUrl;
