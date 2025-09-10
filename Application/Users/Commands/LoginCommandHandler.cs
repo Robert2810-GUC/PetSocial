@@ -58,7 +58,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Tok
             }
         }
 
-        if (!string.Equals(identityUser?.Email, "admin@petsocial.com", StringComparison.OrdinalIgnoreCase) && (identityUser == null || userProfile == null))
+        if(identityUser == null || userProfile == null)
             return ApiResponse<TokenResult>.Fail("User not found.", 404);
 
 

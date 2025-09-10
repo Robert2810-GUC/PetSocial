@@ -34,6 +34,12 @@ public class AuthController : ControllerBase
         var response = await _mediator.Send(cmd);
         return StatusCode(response.StatusCode, response);
     }
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpCommand cmd)
+    {
+        var response = await _mediator.Send(cmd);
+        return StatusCode(response.StatusCode, response);
+    }
 
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
