@@ -64,6 +64,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
 
             if (otpEntity == null)
                 return ApiResponse<TokenResult>.Fail("Invalid or expired OTP.", 400);
+
+            otpEntity.IsUsed = true;
         }
 
         await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -90,7 +92,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
                 return ApiResponse<TokenResult>.Fail("Registration failed: " + msg, 400);
             }
 
-            otpEntity.IsUsed = true;
+            
 
             var userProfile = new User
             {
