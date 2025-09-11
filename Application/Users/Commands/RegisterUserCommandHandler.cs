@@ -50,7 +50,9 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         if (phoneExists)
             return ApiResponse<TokenResult>.Fail("Phone already registered.", 409);
 
-        var otpEntity = await _dbContext.UserOtps
+        if (!request.IsOtpVerified.HasValue || !request.IsOtpVerified.Value)
+        {
+            var otpEntity = await _dbContext.UserOtps
             .Where(x => x.CountryCode == countryCode
                      && x.PhoneNumber == rawPhone
                      && x.Otp == request.Otp
@@ -59,8 +61,9 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
             .OrderByDescending(x => x.ExpiresAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (otpEntity == null)
-            return ApiResponse<TokenResult>.Fail("Invalid or expired OTP.", 400);
+            if (otpEntity == null)
+                return ApiResponse<TokenResult>.Fail("Invalid or expired OTP.", 400);
+        }
 
         await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
