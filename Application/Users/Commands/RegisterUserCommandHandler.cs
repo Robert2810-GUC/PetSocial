@@ -52,6 +52,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
 
         if (!request.IsOtpVerified.HasValue || !request.IsOtpVerified.Value)
         {
+            if (string.IsNullOrWhiteSpace(request.Otp)) return ApiResponse<TokenResult>.Fail("OTP is required.", 400);
             var otpEntity = await _dbContext.UserOtps
             .Where(x => x.CountryCode == countryCode
                      && x.PhoneNumber == rawPhone
