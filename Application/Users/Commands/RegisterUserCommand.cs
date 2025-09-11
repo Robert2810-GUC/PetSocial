@@ -12,7 +12,6 @@ public class RegisterUserCommand : IRequest<ApiResponse<TokenResult>>
     public string PhoneNumber { get; set; }
     public string? Otp { get; set; }
     public string Password { get; set; }
-
-    public bool? IsOtpVerified = false;
+    public bool? IsOtpVerified { get; set; } = false;
     public long UserTypeId { get; set; } = (int)UserTypeEnum.PetOwner;
 }
